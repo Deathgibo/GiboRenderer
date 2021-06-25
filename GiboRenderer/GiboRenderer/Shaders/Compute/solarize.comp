@@ -1,0 +1,26 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+#define WIDTH 800
+#define HEIGHT 800
+
+#define WORKGROUP_SIZE 32
+
+layout(local_size_x=WORKGROUP_SIZE, local_size_y=WORKGROUP_SIZE, local_size_z=1) in;
+
+layout(binding=0, rgba8) uniform image2D input_tex;
+layout(binding=1, rgba8) uniform image2D output_tex; //coherent restrict writeonly
+
+
+void main()
+{  
+   vec4 pix = imageLoad(input_tex, ivec2(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y));
+    
+   float intensity = ((pix.r*.3f) + (pix.g*.59f) + (pix.b*.11f)) / 3.0f;
+   if(intensity < .3f)
+   {
+      pix = vec4(vec3(1.0,1.0,1.0) - pix.rgb,pix.a);
+   }
+
+    imageStore(output_tex, ivec2(gl_GlobalInvocationID.xy), pix);
+}
