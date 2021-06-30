@@ -14,15 +14,15 @@ no singleton, pass in references
 
 driver holds all these manager/caces, then you pass around the driver by reference
 
-swapchain
-framebuffer/renderpass: just learn about it again, take notes, make a good interface. I think we can just do explicitly, maybe a cace.
-buffer/images/memory management
-maybe shaderprograms
-pipeline/descriptors/cmds management
+
+
+finish transfering/taking notes, reviewing code, push to github
+
 front-end
 imgui: set up easy way to use and debug
 memory profiler: fix all memory leaks
 cpu/gpu profiler: map out cpu bottlenecks, and gpu bottlebecks
+multithreading on update function and startup?
 final review through all ideas. Make sure using data design where I can, classes are commented and clean and not too large.
 ------- IDEAS  ---------
 . Focus on memory management. Lifetime, footprint, optimization
@@ -31,3 +31,14 @@ final review through all ideas. Make sure using data design where I can, classes
 . good c++. const, references, good use of pointers, good class design.
 . less shared_pointers
 . linear programming, less brances
+
+
+
+
+
+
+
+
+
+
+

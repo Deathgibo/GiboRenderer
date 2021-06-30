@@ -19,6 +19,8 @@
 
 #include "Utilities/Logger.h"
 #include "Utilities/Timer.h"
+
+#include "ThirdParty/vk_mem_alloc.h"
 //#include "Utils/Input.h"
 //#include "shared_structs.h"
 

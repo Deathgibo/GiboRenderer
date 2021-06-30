@@ -1,5 +1,6 @@
 #pragma once
 #include "vkcore/vkcoreDevice.h"
+#include "vkcore/ShaderProgram.h"
 #include "glfw_handler.h"
 #include "../Utilities/Input.h"
 
@@ -30,8 +31,9 @@ namespace Gibo {
 
 	private:
 		Input InputManager; //1030 bytes
-		glfw_handler WindowManager; //16 bytes
 		vkcoreDevice Device; //8 bytes
+		glfw_handler WindowManager; //16 bytes
+		VkExtent2D window_extent;
 	};
 }
 

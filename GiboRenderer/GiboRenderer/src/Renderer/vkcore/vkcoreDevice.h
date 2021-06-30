@@ -1,13 +1,47 @@
 #pragma once
 #include <GLFW/glfw3.h>
+#include "RenderPassCache.h"
+#include "PipelineCache.h"
+#include "SamplerCache.h"
+#include "CommandPoolCache.h"
+#include "VulkanHelpers.h"
+
 /*
  This is the main class of the vulkan backend. This will be ideally used by frontend as the main interface, passed around by reference.
- It will create the vulkan device, pick the pysical device, create swapcain, logical device. As well as it will hold framebuffercaces.
+ It will create the vulkan device, pick the pysical device, create swapcain, logical device. As well as it will hold most of the main backend classes.
+ It is also responsible for holding the VMA allocator and should be called when you want to create/destroy a buffer or image.
 
  *Make sure to call DestroyDevice() after use
 */
 
 namespace Gibo {
+
+	struct vkcoreBuffer
+	{
+		VkBuffer buffer;
+		VmaAllocation allocation;
+		void* mapped_data = nullptr;
+	};
+
+	struct vkcoreImage
+	{
+		VkImage image;
+		VmaAllocation allocation;
+		void* mapped_data = nullptr;;
+	};
+
+	struct DescriptorHelper {
+		std::vector<std::vector<vkcoreBuffer>> uniformbuffers;
+		std::vector<std::vector<uint64_t>> buffersizes;
+		std::vector<std::vector<VkImageView>> imageviews;
+		std::vector<std::vector<VkSampler>> samplers;
+		std::vector<std::vector<VkBufferView>> bufferviews;
+
+		DescriptorHelper(int size) : uniformbuffers(), buffersizes(size), imageviews(size), samplers(size), bufferviews(size)
+		{
+
+		}
+	};
 
 	class vkcoreDevice
 	{
@@ -22,44 +56,66 @@ namespace Gibo {
 		vkcoreDevice& operator=(vkcoreDevice const&) = delete;
 		vkcoreDevice& operator=(vkcoreDevice&&) = delete;
 
-		bool CreateDevice(std::string name, GLFWwindow* window);
+		bool CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent);
 		void DestroyDevice();
 
-		VkPhysicalDevice GetDevice() const { return PhysicalDevice; }
+		//VMA allocation calls
+		bool CreateImage(VkImageType image_type, VkFormat Format, VkImageUsageFlags usage, VkSampleCountFlagBits samplecount, uint32_t width, uint32_t height, uint32_t depth,
+			             uint32_t mip_levels, uint32_t array_layers, VmaMemoryUsage memusage, VmaAllocationCreateFlags mapped_bit_flag, vkcoreImage& vkimage);
+		void DestroyImage(vkcoreImage& vkimage);
+		bool CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memusage, VmaAllocationCreateFlags mapped_bit_flag, vkcoreBuffer& vkbuffer);
+		void DestroyBuffer(vkcoreBuffer& vkbuffer);
+		void BindData(VmaAllocation allocation, void* data, size_t size);
+		void BindDataAlwaysMapped(void* mapped_ptr, void* data, size_t size);
+		VmaAllocationInfo GetAllocationInfo(VmaAllocation allocation);
+		void PrintVMAStats();
+
+		VkCommandBuffer beginSingleTimeCommands(POOL_FAMILY familyoperation);
+		void submitSingleTimeCommands(VkCommandBuffer buffer, POOL_FAMILY familyoperation);
+
+		//Set/Get
+		VkPhysicalDevice GetPhysicalDevice() const { return PhysicalDevice; }
+		VkDevice GetDevice() const { return LogicalDevice; }
+		RenderPassCache& GetRenderPassCache() { return *renderpassCache; }
+		PipelineCache& GetPipelineCache() { return *pipelineCache; }
+		SamplerCache& GetSamplerCache() { return *samplerCache; }
+		CommandPoolCache& GetCommandPoolCache() { return *cmdpoolCache; }
 	private:
 		bool CreateVulkanInstance(std::string name);
 		bool CreateSurface(GLFWwindow* window);
 		bool PickPhysicalDevice();
 		bool CreateLogicalDevice();
-		bool CreateSwapChain();
+		bool CreateAllocator();
+		bool CreateSwapChain(VkExtent2D& window_extent);
 
 		bool checkvalidationLayerSupport();
 		bool CheckDeviceQueueSupport(VkPhysicalDevice device, VkSurfaceKHR surface, VkQueueFlags flags);
-		int GetQueueFamily(VkPhysicalDevice device, VkQueueFlags flags);
-		int GetPresentQueueFamily(VkPhysicalDevice device, VkSurfaceKHR surface);
 
 	private:
+		//put most frequently used up top lease at bottom. Group things used together. Larger objects up top too.
 		//VK_Handles are 8 bytes so 8 can fit on a cache line
+		VmaAllocator Allocator;
+		RenderPassCache* renderpassCache;
+		PipelineCache* pipelineCache;
+		SamplerCache* samplerCache;
+		CommandPoolCache* cmdpoolCache;
 		VkInstance Instance;
 		VkSurfaceKHR Surface;
 		VkPhysicalDevice PhysicalDevice;
 		VkDevice LogicalDevice;
 		VkSwapchainKHR SwapChain;
+		std::vector<VkImage> swapChainImages;
+		std::vector<VkImageView> swapChainImageViews;
+
 
 		VkQueue GraphicsQueue;
 		VkQueue PresentQueue;
 		VkQueue ComputeQueue;
 		VkQueue TransferQueue;
-	};
 
-	//Queue are just something you submit command buffers to that actually put the commands on a queue for the gpu to run
-	//Queues can handle different operations on different hardware of the gpu so they have different types
-	//Families are just queues that have the same exact property. Really theres different queues for multi-threading purposes
-	//Graphics: For creating graphics pipelines and drawing (vkCmdDraw)
-	//Compute: For creating compute pipelines and dispatching compute shaders (vkCmdDispatch)
-	//Transfer: Used for very fast memory-copying operations (vkCmdCopy)
-	//Sparse: Allows for additional memory management features (vkQueueBindSparse)
-	//Present: Used for presenting Command
+		uint32_t buffer_allocations = 0;
+		uint32_t image_allocations = 0;
+	};
 
 }
 

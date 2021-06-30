@@ -3,6 +3,10 @@
 
 namespace Gibo {
 
+	/*
+		Holds useful functions for printing out vulkan information
+	*/
+
 	void PrintVulkanAPIVersion(uint32_t curr_version)
 	{
 		uint32_t apiversion;
@@ -39,7 +43,6 @@ namespace Gibo {
 			Logger::Log('\t', layerProperties.layerName, '\n');
 		}
 	}
-
 
 	void PrintPhysicalDeviceProperties(VkPhysicalDevice device)
 	{
