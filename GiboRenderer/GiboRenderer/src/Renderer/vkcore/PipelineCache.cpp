@@ -1,5 +1,6 @@
 #include "../../pch.h"
 #include "PipelineCache.h"
+#include "PhysicalDeviceQuery.h"
 
 namespace Gibo {
 
@@ -7,10 +8,11 @@ namespace Gibo {
 	{
 		glm::vec3 pos;
 		glm::vec3 normal;
-		glm::vec3 color;
 		glm::vec2 uv;
 		glm::vec3 tangent;
 		glm::vec3 bitangent;
+
+		static const uint32_t attribute_count = 5;
 
 		static VkVertexInputBindingDescription getBindingDescription()
 		{
@@ -22,13 +24,13 @@ namespace Gibo {
 			return descript;
 		}
 
-		static std::array<VkVertexInputAttributeDescription, 6> getAttributeDescription()
+		static std::array<VkVertexInputAttributeDescription, attribute_count> getAttributeDescription()
 		{
 			//SINT signed 32-bit integers
 			//UINT unsigned 32-bit integers
 			//SFLOAT 64 bit float
 
-			std::array<VkVertexInputAttributeDescription, 6> descripts = {};
+			std::array<VkVertexInputAttributeDescription, attribute_count> descripts = {};
 			descripts[0].binding = 0;
 			descripts[0].location = 0;
 			descripts[0].format = VK_FORMAT_R32G32B32_SFLOAT;
@@ -41,23 +43,18 @@ namespace Gibo {
 
 			descripts[2].binding = 0;
 			descripts[2].location = 2;
-			descripts[2].format = VK_FORMAT_R32G32B32_SFLOAT;
-			descripts[2].offset = offsetof(Vertex, color);
+			descripts[2].format = VK_FORMAT_R32G32_SFLOAT;
+			descripts[2].offset = offsetof(Vertex, uv);
 
 			descripts[3].binding = 0;
 			descripts[3].location = 3;
-			descripts[3].format = VK_FORMAT_R32G32_SFLOAT;
-			descripts[3].offset = offsetof(Vertex, uv);
+			descripts[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+			descripts[3].offset = offsetof(Vertex, tangent);
 
 			descripts[4].binding = 0;
 			descripts[4].location = 4;
 			descripts[4].format = VK_FORMAT_R32G32B32_SFLOAT;
-			descripts[4].offset = offsetof(Vertex, tangent);
-
-			descripts[5].binding = 0;
-			descripts[5].location = 5;
-			descripts[5].format = VK_FORMAT_R32G32B32_SFLOAT;
-			descripts[5].offset = offsetof(Vertex, bitangent);
+			descripts[4].offset = offsetof(Vertex, bitangent);
 
 			return descripts;
 		}
@@ -85,18 +82,27 @@ namespace Gibo {
 		PipelineArray.clear();
 	}
 
-	VkPipeline PipelineCache::GetGraphicsPipeline(PipelineData data, VkRenderPass renderpass, const std::vector<VkPipelineShaderStageCreateInfo>& moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size)
+	vkcorePipeline PipelineCache::GetGraphicsPipeline(PipelineData data, VkPhysicalDevice physicaldevice, VkRenderPass renderpass, const std::vector<VkPipelineShaderStageCreateInfo>& moduleinfo,
+														std::vector<VkPushConstantRange>& ranges, VkDescriptorSetLayout* layouts, uint32_t layouts_size)
 	{
+		for (auto& pushconstantsize : ranges)
+		{
+			if (pushconstantsize.size > GetDeviceLimits(physicaldevice).maxPushConstantsSize)
+			{
+				Logger::LogError("Push constant size greater than ", GetDeviceLimits(physicaldevice).maxPushConstantsSize, " bytes\n");
+			}
+		}
+
 		VkPipeline current_pipeline;
 		VkPipelineLayout current_layout;
 
 		//specify the format of the vertex data like a vao
 		VkVertexInputBindingDescription bindingDescription                    = Vertex::getBindingDescription();
-		std::array<VkVertexInputAttributeDescription, 6> attributeDescription = Vertex::getAttributeDescription();
+		std::array<VkVertexInputAttributeDescription, Vertex::attribute_count> attributeDescription = Vertex::getAttributeDescription();
 
 		VkPipelineVertexInputStateCreateInfo vertexinputinfo = {};
 		vertexinputinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-		vertexinputinfo.vertexAttributeDescriptionCount = 6;
+		vertexinputinfo.vertexAttributeDescriptionCount = Vertex::attribute_count;
 		vertexinputinfo.pVertexAttributeDescriptions = attributeDescription.data(); //describe attributes, bindings, offsets
 		vertexinputinfo.vertexBindingDescriptionCount = 1;
 		vertexinputinfo.pVertexBindingDescriptions = &bindingDescription; //spacing between data
@@ -190,28 +196,10 @@ namespace Gibo {
 		*/
 
 		//this is where you set up uniform values in shaders, specifies what resources can be accessed by a pipeline
-		std::vector<VkDescriptorSetLayout> current_layouts;
-		for (int i = 0; i < layouts_size; i++) {
-			VkDescriptorSetLayout* l = layouts + i;
-			current_layouts.push_back(*l);
-		}
-
-		std::vector<VkPushConstantRange> ranges;
-		for (int i = 0; i < data.Pushconstants.shaderstage.size(); i++)
-		{
-			VkPushConstantRange range;
-			range.stageFlags = data.Pushconstants.shaderstage[i];
-			range.offset = data.Pushconstants.offset[i];//must be multiple of 4
-			range.size = data.Pushconstants.size[i];//must be multiple of 4
-
-			ranges.push_back(range);
-		}
-	
-
 		VkPipelineLayoutCreateInfo layoutinfo = {};
 		layoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		layoutinfo.setLayoutCount = current_layouts.size();
-		layoutinfo.pSetLayouts = current_layouts.data();
+		layoutinfo.setLayoutCount = layouts_size;
+		layoutinfo.pSetLayouts = layouts;
 		layoutinfo.pushConstantRangeCount = ranges.size();
 		if (ranges.size() != 0)
 		{
@@ -248,10 +236,14 @@ namespace Gibo {
 		PipelineArray.push_back(current_pipeline);
 		LayoutArray.push_back(current_layout);
 
-		return current_pipeline;
+		vkcorePipeline pipe_out;
+		pipe_out.pipeline = current_pipeline;
+		pipe_out.layout = current_layout;
+
+		return pipe_out;
 	}
 
-	VkPipeline PipelineCache::GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size)
+	vkcorePipeline PipelineCache::GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size)
 	{
 		VkPipeline current_pipeline;
 		VkPipelineLayout current_layout;
@@ -280,6 +272,10 @@ namespace Gibo {
 		PipelineArray.push_back(current_pipeline);
 		LayoutArray.push_back(current_layout);
 
-		return current_pipeline;
+		vkcorePipeline pipe_out;
+		pipe_out.pipeline = current_pipeline;
+		pipe_out.layout = current_layout;
+
+		return pipe_out;
 	}
 }

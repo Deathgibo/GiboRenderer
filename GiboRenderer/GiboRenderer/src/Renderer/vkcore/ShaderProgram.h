@@ -17,56 +17,71 @@ namespace Gibo {
 	Todo - make passing in double vector less messy?
 	*/
 
-	struct shadersinfo 
-	{
-		std::string name;
-		VkShaderStageFlagBits stage;
-	};
-
-	struct descriptorinfo
-	{
-		std::string name;
-		uint32_t binding;
-		VkDescriptorType type;
-		VkShaderStageFlags stageflags;
-		VkImageLayout imagelayout;
-		int descriptorcount = 1;
-		bool perinstance;
-	};
-
-	//just a quick way to hand out id's. counter will increment and repeat at IDHELPERSIZE and the slots just represent if that id is taken or not
-	const int IDHELPERSIZE = 1000;
-	struct idhelper 
-	{
-		std::array<bool, IDHELPERSIZE>slots;
-		uint32_t counter;
-
-		idhelper()
-		{
-			slots.fill(false);
-			counter = 0;
-		}
-
-		uint32_t GetNextID()//assumes every slot will never all be true
-		{
-			while (slots[counter] == true)
-			{
-				counter = (counter + 1) % IDHELPERSIZE;
-			}
-			uint32_t returncounter = counter;
-			slots[returncounter] = true;
-			counter = (counter + 1) % IDHELPERSIZE;
-			return returncounter;
-		}
-
-		void FreeID(uint32_t id)
-		{
-			slots[id] = false;
-		}
-	};
-
 	class ShaderProgram
 	{
+	public:
+		struct shadersinfo
+		{
+			std::string name;
+			VkShaderStageFlagBits stage;
+
+			shadersinfo();
+			shadersinfo(std::string name_, VkShaderStageFlagBits stage_) : name(name_), stage(stage_) {}
+		};
+
+		struct descriptorinfo
+		{
+			std::string name;
+			uint32_t binding;
+			VkDescriptorType type;
+			VkShaderStageFlags stageflags;
+			VkImageLayout imagelayout = VK_IMAGE_LAYOUT_UNDEFINED;
+			int descriptorcount = 1;
+			bool perinstance = false;
+
+			descriptorinfo();
+			descriptorinfo(std::string name_, uint32_t binding_, VkDescriptorType type_, VkShaderStageFlags stageflags_, VkImageLayout imagelayout_ = VK_IMAGE_LAYOUT_UNDEFINED) : name(name_),
+				binding(binding_), type(type_), stageflags(stageflags_), imagelayout(imagelayout_) {}
+		};
+
+		struct pushconstantinfo 
+		{
+			VkShaderStageFlags shaderstage;
+			uint32_t offset;   //must be multiple of 4
+			uint32_t size;     //must be multiple of 4
+		};
+
+		//just a quick way to hand out id's. counter will increment and repeat at IDHELPERSIZE and the slots just represent if that id is taken or not
+		//static constexpr int IDHELPERSIZE = 1000;
+		struct idhelper
+		{
+			std::array<bool, 1000>slots;
+			uint32_t counter;
+
+			idhelper()
+			{
+				slots.fill(false);
+				counter = 0;
+			}
+
+			uint32_t GetNextID()//assumes every slot will never all be true
+			{
+				while (slots[counter] == true)
+				{
+					counter = (counter + 1) % 1000;
+				}
+				uint32_t returncounter = counter;
+				slots[returncounter] = true;
+				counter = (counter + 1) % 1000;
+				return returncounter;
+			}
+
+			void FreeID(uint32_t id)
+			{
+				slots[id] = false;
+			}
+		};
+
 	public:
 		ShaderProgram() = default;
 		~ShaderProgram() = default;
@@ -79,15 +94,25 @@ namespace Gibo {
 		ShaderProgram& operator=(ShaderProgram&&) = delete;
 
 		bool Create(VkDevice device, uint32_t framesinflight, shadersinfo* shaderinformation, uint32_t shaderinfo_count, descriptorinfo* globaldescriptors, uint32_t global_count, 
-			        descriptorinfo* localdescriptors, uint32_t local_count, uint32_t maxlocaldescriptorsallowed);
+			        descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed);
 		void CleanUp();
 
 		void SetGlobalDescriptor(std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes, std::vector<std::vector<VkImageView>>& imageviews,
 								 std::vector<std::vector<VkSampler>>& samplers, std::vector<std::vector<VkBufferView>>& bufferviews);
+		void SetSpecificGlobalDescriptor(int current_frame, std::vector<vkcoreBuffer>& uniformbuffers, std::vector<uint64_t>& buffersizes, std::vector<VkImageView>& imageviews,
+			std::vector<VkSampler>& samplers, std::vector<VkBufferView>& bufferviews);
+
 		void AddLocalDescriptor(uint32_t& id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
 			               std::vector<std::vector<VkImageView>>& imageviews, std::vector<std::vector<VkSampler>>& samplers, std::vector<std::vector<VkBufferView>>& bufferviews);
 		void RemoveLocalDescriptor(uint32_t id);
 
+		VkDescriptorSetLayout& GetLocalLayout() { return LocalLayout; }
+		VkDescriptorSetLayout& GetGlobalLayout() { return GlobalLayout; }
+		std::vector<VkShaderModule> GetShaderModules() { return ShaderModules; }
+		std::vector<VkPipelineShaderStageCreateInfo> GetShaderStageInfo() { return ShaderStageInfo; }
+		VkDescriptorSet& GetGlobalDescriptor(int frameinflight) { return GlobalSet[frameinflight]; }
+		VkDescriptorSet& GetLocalDescriptor(uint32_t descriptor_id, int frameinflight) { return DescriptorSets[descriptor_id][frameinflight]; }
+		std::vector<VkPushConstantRange>& GetPushRanges() { return Push_ConstantRanges; }
 	private:
 		std::vector<char> readFile(const std::string& filename) const;
 		void UpdateDescriptorSet(VkDescriptorSet descriptorset, const std::vector<descriptorinfo>& descriptorinfo, vkcoreBuffer* uniformbuffers, uint64_t* buffersizes, VkImageView* imageviews, VkSampler* samplers, VkBufferView* bufferviews);
@@ -102,6 +127,7 @@ namespace Gibo {
 		VkDescriptorPool LocalPool;
 		VkDescriptorSetLayout LocalLayout;
 		VkDescriptorSetLayout GlobalLayout;
+		std::vector<VkPushConstantRange> Push_ConstantRanges;
 
 		//pipeline information
 		std::vector<VkShaderModule> ShaderModules;

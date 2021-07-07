@@ -19,6 +19,7 @@
 
 #include "Utilities/Logger.h"
 #include "Utilities/Timer.h"
+#include "Utilities/QuickArray.h"
 
 #include "ThirdParty/vk_mem_alloc.h"
 //#include "Utils/Input.h"

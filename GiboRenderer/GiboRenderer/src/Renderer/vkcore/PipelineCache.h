@@ -49,11 +49,6 @@ namespace Gibo {
 	struct InputAssembly {
 		VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
 	};
-	struct PushConstants {
-		std::vector<VkShaderStageFlags> shaderstage;
-		std::vector<uint32_t> offset;   //must be multiple of 4
-		std::vector<uint32_t> size;     //must be multiple of 4
-	};
 	struct PipelineData
 	{
 		RasterizationState Rasterizationstate;
@@ -62,7 +57,6 @@ namespace Gibo {
 		ColorBlendState ColorBlendstate;
 		ViewPortState ViewPortstate;
 		InputAssembly Inputassembly;
-		PushConstants Pushconstants;
 
 		PipelineData(float swapchainwidth, float swapchainheight)
 		{
@@ -82,6 +76,11 @@ namespace Gibo {
 		}
 	};
 
+	struct vkcorePipeline
+	{
+		VkPipeline pipeline;
+		VkPipelineLayout layout;
+	};
 	class PipelineCache
 	{ 
 	public:
@@ -98,8 +97,9 @@ namespace Gibo {
 		void Cleanup();
 		void PrintDebug() const;
 
-		VkPipeline GetGraphicsPipeline(PipelineData data, VkRenderPass renderpass, const std::vector<VkPipelineShaderStageCreateInfo>& moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size);
-		VkPipeline GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size);
+		vkcorePipeline GetGraphicsPipeline(PipelineData data, VkPhysicalDevice physicaldevice, VkRenderPass renderpass, const std::vector<VkPipelineShaderStageCreateInfo>& moduleinfo, 
+			                               std::vector<VkPushConstantRange>& ranges, VkDescriptorSetLayout* layouts, uint32_t layouts_size);
+		vkcorePipeline GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size);
 	private:
 		std::vector<VkPipeline> PipelineArray;
 		std::vector<VkPipelineLayout> LayoutArray;

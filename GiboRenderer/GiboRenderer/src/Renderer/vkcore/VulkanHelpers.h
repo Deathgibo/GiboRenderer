@@ -1,6 +1,8 @@
 #pragma once
 #include "../../pch.h"
 #include "PhysicalDeviceQuery.h"
+#include "vkcoreDevice.h"
+
 namespace Gibo {
 
 	/*
@@ -71,9 +73,15 @@ namespace Gibo {
 		return framebuffer;
 	}
 
-	static void TransitionImageLayout(VkCommandBuffer cmdbuffer, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkAccessFlags srcaccess, VkAccessFlags dstaccess,
-										VkPipelineStageFlags srcstage, VkPipelineStageFlags dststage, uint32_t miplevel, uint32_t layercount, VkImageAspectFlagBits aspectmask)
+    static void TransitionImageLayout(vkcoreDevice& device, VkImage image, VkImageLayout oldlayout, VkImageLayout newlayout, VkAccessFlags srcaccess, VkAccessFlags dstaccess,
+										VkPipelineStageFlags srcstage, VkPipelineStageFlags dststage, uint32_t miplevel, uint32_t layercount, VkImageAspectFlagBits aspectmask, VkCommandBuffer incmdbuffer = VK_NULL_HANDLE)
 	{
+		VkCommandBuffer cmdbuffer = incmdbuffer;
+		if (incmdbuffer == VK_NULL_HANDLE)
+		{
+			cmdbuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+		}
+
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.oldLayout = oldlayout;
@@ -100,24 +108,31 @@ namespace Gibo {
 			0, nullptr,
 			1, &barrier
 		);
+
+		if (incmdbuffer == VK_NULL_HANDLE)
+		{
+			device.submitSingleTimeCommands(cmdbuffer, POOL_FAMILY::TRANSFER);
+		}
 	}
 
 	//make sure buffer we are copying from has VK_BUFFER_USAGE_TRANSFER_SRC_BIT and the buffer we are copying into has VK_BUFFER_USAGE_TRANSFER_DST_BIT
 	//dstbufferaccess is what the memory is currently being accesed for, dstpipelinestage is what stage it is last being used by, maybe just do bottom_bit, or vertex_input_bit
-	static void CopyBufferToBuffer(VkCommandBuffer commandBuffer, VkBuffer srcbuffer, VkBuffer dstbuffer, VkAccessFlags dstbufferacces, VkPipelineStageFlags dstpipelinestage, 
+	static void CopyBufferToBuffer(vkcoreDevice& device, VkBuffer srcbuffer, VkBuffer dstbuffer, VkAccessFlags dstcurrentacces, VkPipelineStageFlags dstcurrentpipelinestage,
 											VkDeviceSize srcoffset, VkDeviceSize dstoffset, VkDeviceSize sizetocopy)
 	{
+		VkCommandBuffer commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+
 		//transition dst buffer from whatever it was to a transfer write
-		VkBufferMemoryBarrier barrier;
+		VkBufferMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
-		barrier.srcAccessMask = dstbufferacces;
+		barrier.srcAccessMask = dstcurrentacces;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		barrier.buffer = dstbuffer;
 		barrier.offset = 0;
 		barrier.size = sizetocopy;
-		VkPipelineStageFlags srcstage = dstpipelinestage;
+		VkPipelineStageFlags srcstage = dstcurrentpipelinestage;
 		VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
 		VkBufferCopy copy = {};
@@ -131,19 +146,24 @@ namespace Gibo {
 
 		//transition buffer from transfer write to whatever it was
 		barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-		barrier.dstAccessMask = dstbufferacces;
+		barrier.dstAccessMask = dstcurrentacces;
 		srcstage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-		dststage = dstpipelinestage;
+		dststage = dstcurrentpipelinestage;
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+
+
+		device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
 	}
 
 	//make sure image has usage VK_BUFFER_USAGE_TRANSFER_SRC_BIT and image layout is VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL and buffer has VK_BUFFER_USAGE_TRANSFER_DST_BIT
-	static void CopyImageToBuffer(VkCommandBuffer commandBuffer, VkImage srcimage, VkBuffer dstbuffer, VkAccessFlags dstbufferacces, VkPipelineStageFlags dstpipelinestage, 
+	static void CopyImageToBuffer(vkcoreDevice& device, VkImage srcimage, VkBuffer dstbuffer, VkAccessFlags dstbufferacces, VkPipelineStageFlags dstpipelinestage,
 										    VkImageLayout srclayout, uint32_t width, uint32_t height, VkDeviceSize buffersize)
 	{
+		VkCommandBuffer commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+
 		//transition dst buffer from whatever it was to a transfer write
-		VkBufferMemoryBarrier barrier;
+		VkBufferMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER;
 		barrier.srcAccessMask = dstbufferacces;
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -181,20 +201,24 @@ namespace Gibo {
 		dststage = dstpipelinestage;
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 1, &barrier, 0, nullptr);
+
+		device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
 	}
 
 	//make sure buffer has VK_BUFFER_USAGE_TRANSFER_SRC_BIT and image has VK_BUFFER_USAGE_TRANSFER_DST_BIT and VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	static void CopyBufferToImage(VkCommandBuffer commandBuffer, VkImage dstimage, VkBuffer srcbuffer, VkImageLayout dstlayout, VkAccessFlags dstimageaccess, VkPipelineStageFlags dstpipelinestage,
+	static void CopyBufferToImage(vkcoreDevice& device, VkImage dstimage, VkBuffer srcbuffer, VkImageLayout dstlayoutcurrent, VkImageLayout dstlayoutfinaldesired, VkAccessFlags dstimageaccess, VkAccessFlags srcimageaccess, VkPipelineStageFlags dstpipelinestage,
 		                                   uint32_t width, uint32_t height, VkImageAspectFlags aspectflags, uint32_t miplevels, int layercount)
 	{
-		VkImageMemoryBarrier imagebarrier;
+		VkCommandBuffer commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+
+		VkImageMemoryBarrier imagebarrier = {};
 		imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-		imagebarrier.srcAccessMask = dstimageaccess;
+		imagebarrier.srcAccessMask = srcimageaccess;
 		imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imagebarrier.image = dstimage;
-		imagebarrier.oldLayout = dstlayout;
+		imagebarrier.oldLayout = dstlayoutcurrent;
 		imagebarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		imagebarrier.subresourceRange.aspectMask = aspectflags;
 		imagebarrier.subresourceRange.baseArrayLayer = 0;
@@ -211,7 +235,7 @@ namespace Gibo {
 		copy.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 		copy.imageSubresource.mipLevel = 0;
 		copy.imageSubresource.baseArrayLayer = 0;
-		copy.imageSubresource.layerCount = 1;
+		copy.imageSubresource.layerCount = layercount;
 		copy.imageOffset = { 0, 0, 0 };
 		copy.imageExtent = {
 			width,
@@ -221,31 +245,36 @@ namespace Gibo {
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
 
-		vkCmdCopyBufferToImage(commandBuffer, srcbuffer, dstimage, dstlayout, 1, &copy);
+		vkCmdCopyBufferToImage(commandBuffer, srcbuffer, dstimage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copy);
 
 		imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		imagebarrier.dstAccessMask = dstimageaccess;
 		imagebarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		imagebarrier.newLayout = dstlayout;
+		imagebarrier.newLayout = dstlayoutfinaldesired;
 		srcstage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dststage = dstpipelinestage;
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+
+		device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
 	}
 
 	//make sure image we are copying from has VK_BUFFER_USAGE_TRANSFER_SRC_BIT and VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL 
 	//and the image we are copying into has VK_BUFFER_USAGE_TRANSFER_DST_BIT and VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-	static void CopyImageToImage(VkCommandBuffer commandBuffer, VkImage srcimage, VkImage dstimage, VkImageLayout srclayout, VkImageLayout dstlayout, 
+	//TODO - support multiple mip level/array layer copying
+	static void CopyImageToImage(vkcoreDevice& device, VkImage srcimage, VkImage dstimage, VkImageLayout srclayout, VkImageLayout dstlayoutcurrent, VkImageLayout dstlayoutfinaldesired,
 		VkAccessFlags dstimageaccess, VkPipelineStageFlags dstpipelinestage, uint32_t width, uint32_t height, VkImageAspectFlags dstaspectflags, uint32_t dstmiplevels, int dstlayercount)
 	{
-		VkImageMemoryBarrier imagebarrier;
+		VkCommandBuffer commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+
+		VkImageMemoryBarrier imagebarrier = {};
 		imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		imagebarrier.srcAccessMask = dstimageaccess;
 		imagebarrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		imagebarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imagebarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 		imagebarrier.image = dstimage;
-		imagebarrier.oldLayout = dstlayout;
+		imagebarrier.oldLayout = dstlayoutcurrent;
 		imagebarrier.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 		imagebarrier.subresourceRange.aspectMask = dstaspectflags;
 		imagebarrier.subresourceRange.baseArrayLayer = 0;
@@ -274,21 +303,25 @@ namespace Gibo {
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
 
-		vkCmdCopyImage(commandBuffer, srcimage, srclayout, dstimage, dstlayout, 1, &region);
+		vkCmdCopyImage(commandBuffer, srcimage, srclayout, dstimage, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 
 		imagebarrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
 		imagebarrier.dstAccessMask = dstimageaccess;
 		imagebarrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
-		imagebarrier.newLayout = dstlayout;
+		imagebarrier.newLayout = dstlayoutfinaldesired;
 		srcstage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 		dststage = dstpipelinestage;
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
+
+		device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
 	}
 
 	//make sure image is supported with VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT
-	static void generateMipmaps(VkCommandBuffer commandbuffer, VkImage image, VkFormat format, int32_t texWidth, int32_t texHeight, uint32_t mipLevels, VkImageLayout finallayout)
+	static void generateMipmaps(vkcoreDevice& device, VkImage image, VkFormat format, int32_t texWidth, int32_t texHeight, uint32_t mipLevels, VkImageLayout finallayout)
 	{
+		VkCommandBuffer commandbuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+
 		VkImageMemoryBarrier barrier = {};
 		barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 		barrier.image = image;
@@ -346,6 +379,8 @@ namespace Gibo {
 		barrier.dstAccessMask = VK_ACCESS_TRANSFER_READ_BIT;
 
 		vkCmdPipelineBarrier(commandbuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, 0, 0, nullptr, 0, nullptr, 1, &barrier);
+
+		device.submitSingleTimeCommands(commandbuffer, POOL_FAMILY::TRANSFER);
 	}
 
 	//vkCmdResolveImage - Resolves a multisamplingimage to a non-multisampling image

@@ -4,7 +4,6 @@
 #include "PipelineCache.h"
 #include "SamplerCache.h"
 #include "CommandPoolCache.h"
-#include "VulkanHelpers.h"
 
 /*
  This is the main class of the vulkan backend. This will be ideally used by frontend as the main interface, passed around by reference.
@@ -20,14 +19,14 @@ namespace Gibo {
 	{
 		VkBuffer buffer;
 		VmaAllocation allocation;
-		void* mapped_data = nullptr;
+		void* mapped_data;
 	};
 
 	struct vkcoreImage
 	{
 		VkImage image;
 		VmaAllocation allocation;
-		void* mapped_data = nullptr;;
+		void* mapped_data;
 	};
 
 	struct DescriptorHelper {
@@ -37,7 +36,7 @@ namespace Gibo {
 		std::vector<std::vector<VkSampler>> samplers;
 		std::vector<std::vector<VkBufferView>> bufferviews;
 
-		DescriptorHelper(int size) : uniformbuffers(), buffersizes(size), imageviews(size), samplers(size), bufferviews(size)
+		DescriptorHelper(int size) : uniformbuffers(size), buffersizes(size), imageviews(size), samplers(size), bufferviews(size)
 		{
 
 		}
@@ -56,7 +55,7 @@ namespace Gibo {
 		vkcoreDevice& operator=(vkcoreDevice const&) = delete;
 		vkcoreDevice& operator=(vkcoreDevice&&) = delete;
 
-		bool CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent);
+		bool CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, int framesinflight);
 		void DestroyDevice();
 
 		//VMA allocation calls
@@ -64,11 +63,12 @@ namespace Gibo {
 			             uint32_t mip_levels, uint32_t array_layers, VmaMemoryUsage memusage, VmaAllocationCreateFlags mapped_bit_flag, vkcoreImage& vkimage);
 		void DestroyImage(vkcoreImage& vkimage);
 		bool CreateBuffer(VkDeviceSize size, VkBufferUsageFlags usage, VmaMemoryUsage memusage, VmaAllocationCreateFlags mapped_bit_flag, vkcoreBuffer& vkbuffer);
+		bool CreateBufferStaged(VkDeviceSize size, void* data, VkBufferUsageFlags usage, VmaMemoryUsage memusage, vkcoreBuffer& vkbuffer,
+								VkAccessFlagBits dstacces, VkPipelineStageFlagBits dststage);
 		void DestroyBuffer(vkcoreBuffer& vkbuffer);
 		void BindData(VmaAllocation allocation, void* data, size_t size);
 		void BindDataAlwaysMapped(void* mapped_ptr, void* data, size_t size);
 		VmaAllocationInfo GetAllocationInfo(VmaAllocation allocation);
-		void PrintVMAStats();
 
 		VkCommandBuffer beginSingleTimeCommands(POOL_FAMILY familyoperation);
 		void submitSingleTimeCommands(VkCommandBuffer buffer, POOL_FAMILY familyoperation);
@@ -76,17 +76,34 @@ namespace Gibo {
 		//Set/Get
 		VkPhysicalDevice GetPhysicalDevice() const { return PhysicalDevice; }
 		VkDevice GetDevice() const { return LogicalDevice; }
+		VkSwapchainKHR GetSwapChain() { return SwapChain; }
 		RenderPassCache& GetRenderPassCache() { return *renderpassCache; }
 		PipelineCache& GetPipelineCache() { return *pipelineCache; }
 		SamplerCache& GetSamplerCache() { return *samplerCache; }
+		VmaAllocator& GetAllocator() { return Allocator; }
 		CommandPoolCache& GetCommandPoolCache() { return *cmdpoolCache; }
+		VkFormat GetswapchainFormat() { return SwapChainFormat; }
+		VkImage GetswapchainImage(int x) { return swapChainImages[x]; }
+		VkImageView GetswapchainView(int x) { return swapChainImageViews[x]; }
+		int GetSwapChainImageCount() { return swapChainImages.size(); }
+		VkQueue GetQueue(POOL_FAMILY family)
+		{
+			switch (family)
+			{
+				case POOL_FAMILY::GRAPHICS: return GraphicsQueue; break;
+				case POOL_FAMILY::TRANSFER: return TransferQueue; break;
+				case POOL_FAMILY::PRESENT: return PresentQueue; break;
+				case POOL_FAMILY::COMPUTE: return ComputeQueue; break;
+			}
+			return VK_NULL_HANDLE;
+		}
 	private:
 		bool CreateVulkanInstance(std::string name);
 		bool CreateSurface(GLFWwindow* window);
 		bool PickPhysicalDevice();
 		bool CreateLogicalDevice();
 		bool CreateAllocator();
-		bool CreateSwapChain(VkExtent2D& window_extent);
+		bool CreateSwapChain(VkExtent2D& window_extent, int framesinflight);
 
 		bool checkvalidationLayerSupport();
 		bool CheckDeviceQueueSupport(VkPhysicalDevice device, VkSurfaceKHR surface, VkQueueFlags flags);
@@ -106,7 +123,7 @@ namespace Gibo {
 		VkSwapchainKHR SwapChain;
 		std::vector<VkImage> swapChainImages;
 		std::vector<VkImageView> swapChainImageViews;
-
+		VkFormat SwapChainFormat;
 
 		VkQueue GraphicsQueue;
 		VkQueue PresentQueue;

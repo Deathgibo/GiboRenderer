@@ -3,7 +3,6 @@
 
 layout(location = 0) out vec4 outColor;
 
-layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec2 texCoords;
 layout(location = 3) in vec3 fragNormal;
 layout(location = 4) in vec3 WorldPos;
@@ -227,7 +226,7 @@ void main() {
 	 vec3 finalcolor =  rayleighscattercolor + miescattercolor;
 
 	 //Tone-Mapping
-	 float exposure = 0.8; //lower exposure more detail in higher value
+	 float exposure = 3.8; //lower exposure more detail in higher value
 	 finalcolor = vec3(1.0) - exp(-finalcolor * exposure);
 
 	//finalcolor = Uncharted2Tonemap(finalcolor);
@@ -237,6 +236,7 @@ void main() {
      {
 	   outColor = vec4(0,0,0,1);
      }
+	 //outColor = vec4(1,0,0,1);
 	 //outColor = vec4(miescattercolor,1);
 	 //outColor = vec4(normalize(fragNormal),1);
 }

@@ -8,7 +8,6 @@
 
 layout(location = 0) out vec4 outColor;
 
-layout(location = 1) in vec3 inColor;
 layout(location = 2) in vec2 texCoords;
 layout(location = 3) in vec3 fragNormal;
 layout(location = 4) in vec3 WorldPos;
@@ -487,7 +486,7 @@ void main() {
 
 	SunColor *= suntransmittance;
 	SunColor = max(SunColor, 0.0);
-	Color += SunColor;
+	//Color += SunColor;
 
 	//Ambient Color
 	vec3 GlobalAmbient = vec3(.0,.0,.0);
@@ -499,12 +498,14 @@ void main() {
 
 	vec3 AmbientColor = diffuseColor * (AtmosphereAmbient);
 
-	Color += AmbientColor;
+	//Color += AmbientColor;
 
-//Tone-Mapping
-   //float exposure = 1.0; //lower exposure more detail in higher value
-   //Color = vec3(1.0) - exp(-Color * exposure);
+    //Tone-Mapping
+   float exposure = 2.3; //lower exposure more detail in higher value
+   Color = vec3(1.0) - exp(-Color * exposure);
 
    outColor = vec4(Color, the_albedo.a);
+  
+  // outColor = light_data.linfo[0].color;
   // outColor = vec4(Color, 1);
 }

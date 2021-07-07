@@ -8,21 +8,34 @@ imgui
 rewrite
 
 
+cpu only data can be update at start of frame/ then cpu gpu dependent memory/ 
+point of frames in flight is to keep gpu fed
+have dirty system for deleting renderobjects, and a vector pool to efficiently get memory
+
 pass in struct data
 caches
 no singleton, pass in references
-
 driver holds all these manager/caces, then you pass around the driver by reference
 
 
+I have to finish dynamic objects: dynamic local descriptors, nicer interface, and commandbuffer creation every frame, and update everything, test
+recreate swapchain, switch multi_smapling
+add blending 
+deal with all memory leaks
 
-finish transfering/taking notes, reviewing code, push to github
-
-front-end
+review code, take notes, refresh on default formats, do compute dispatch groups for atmosphere and pp
+way to make it so you don't have to wait for onetime cmds, it holds them all and checks every frame for its fence
+optimize and refine local descriptor sets so you don't have to recreate just for the new objects and remove for deleted objects
+refine renderobject interface
+push constants need one per frame?
+print errors everywhere
+--
 imgui: set up easy way to use and debug
 memory profiler: fix all memory leaks
 cpu/gpu profiler: map out cpu bottlenecks, and gpu bottlebecks
 multithreading on update function and startup?
+supported different screen sizes and resolutions and fov
+make a basic scene
 final review through all ideas. Make sure using data design where I can, classes are commented and clean and not too large.
 ------- IDEAS  ---------
 . Focus on memory management. Lifetime, footprint, optimization

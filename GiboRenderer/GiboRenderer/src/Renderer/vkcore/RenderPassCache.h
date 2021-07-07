@@ -28,6 +28,9 @@ namespace Gibo
 	resolveattachment: has to do with multisampling. Pretty sure it takes all the samples in the color attachment and combines them into 1. resolve the image.
 
 	It is advisable that applications use as few render passes as possible, because changing render targets is a fundamentally expensive operation
+
+	for layouts initial_layout is what it expects it to be, if you do undefined it just means te data can't be preserved. final_layout is what
+	it will transition it to after renderpass. And te attacment layout is what it will transition it to before the renderpass.
 	*/
 
 	enum class RENDERPASSTYPE : uint32_t {COLOR, DEPTH, RESOLVE, INPUT, PRESERVE};
@@ -37,8 +40,8 @@ namespace Gibo
 		uint32_t mattachmentnumber;
 		VkFormat mformat;
 		VkSampleCountFlagBits msample_count;
+		VkImageLayout mcurrent_layout;
 		VkImageLayout minitial_layout;
-		VkImageLayout mshader_layout;
 		VkImageLayout mfinal_layout;
 		VkAttachmentLoadOp mloadop;
 		VkAttachmentStoreOp mstoreop;
@@ -46,9 +49,9 @@ namespace Gibo
 		VkAttachmentStoreOp mstencilstoreop;
 		RENDERPASSTYPE mtype;
 
-		RenderPassAttachment(uint32_t attachment_number, VkFormat format, VkSampleCountFlagBits sample_count, VkImageLayout initial_layout, VkImageLayout shader_layout, VkImageLayout final_layout,
+		RenderPassAttachment(uint32_t attachment_number, VkFormat format, VkSampleCountFlagBits sample_count, VkImageLayout current_layout, VkImageLayout initial_layout, VkImageLayout final_layout,
 			VkAttachmentLoadOp loadop, VkAttachmentStoreOp storeop, VkAttachmentLoadOp stencilloadop, VkAttachmentStoreOp stencilstoreop, RENDERPASSTYPE type) : mattachmentnumber(attachment_number),
-			mformat(format), msample_count(sample_count),minitial_layout(initial_layout), mshader_layout(shader_layout), mfinal_layout(final_layout), mloadop(loadop),mstoreop(storeop),
+			mformat(format), msample_count(sample_count), mcurrent_layout(current_layout), minitial_layout(initial_layout), mfinal_layout(final_layout), mloadop(loadop),mstoreop(storeop),
 			mstencilloadop(stencilloadop),mstencilstoreop(stencilstoreop), mtype(type) { }
 	};
 

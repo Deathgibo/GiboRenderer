@@ -40,12 +40,12 @@ namespace Gibo {
 			Attachment.storeOp = current_attachment->mstoreop;
 			Attachment.stencilLoadOp = current_attachment->mstencilloadop;
 			Attachment.stencilStoreOp = current_attachment->mstencilstoreop;
-			Attachment.initialLayout = current_attachment->minitial_layout;
+			Attachment.initialLayout = current_attachment->mcurrent_layout; //undefined if you don't know. this will curropt it, but if you clear doesn't matter.
 			Attachment.finalLayout = current_attachment->mfinal_layout;
 
 			VkAttachmentReference AttachmentRef = {};
 			AttachmentRef.attachment = current_attachment->mattachmentnumber;
-			AttachmentRef.layout = current_attachment->mshader_layout; //during subpass
+			AttachmentRef.layout = current_attachment->minitial_layout; //transition at beggining of subpass
 
 			rp_attachments.push_back(Attachment);
 
@@ -123,12 +123,12 @@ namespace Gibo {
 			Attachment.storeOp = current_attachment->mstoreop;
 			Attachment.stencilLoadOp = current_attachment->mstencilloadop;
 			Attachment.stencilStoreOp = current_attachment->mstencilstoreop;
-			Attachment.initialLayout = current_attachment->minitial_layout;
+			Attachment.initialLayout = current_attachment->mcurrent_layout; //undefined if you don't know. this will curropt it, but if you clear doesn't matter.
 			Attachment.finalLayout = current_attachment->mfinal_layout;
 
 			VkAttachmentReference AttachmentRef = {};
 			AttachmentRef.attachment = current_attachment->mattachmentnumber;
-			AttachmentRef.layout = current_attachment->mshader_layout; //during subpass
+			AttachmentRef.layout = current_attachment->minitial_layout; //transition at beggining of subpass
 
 			rp_attachments.push_back(Attachment);
 
@@ -207,7 +207,7 @@ namespace Gibo {
 
 			current_dependencies.push_back(dependency);
 		}
-
+		
 		VkRenderPassCreateInfo renderPassInfo = {};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		renderPassInfo.pNext = nullptr;

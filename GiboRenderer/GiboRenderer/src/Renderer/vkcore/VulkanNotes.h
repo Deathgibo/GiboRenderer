@@ -10,10 +10,12 @@
 	Layouts are as well just make sure you transition them. 
 	Formats are important and its still confusing but I think I need to stick to non SRGB formats for it to be in linear space for pbr and hdr rendering. Also make sure formats
 	are higher precision if needed. As for the swapchain format I don't know maybe it can be srb, will have to test
+	*There are some mandorty formats vulkan requires so can stick to those as defaults
 
 --FRAMES PER FLIGHT--
-	For frames in flight you have multiple gpu datas like buffers and images. So you need multiple descriptosets for these which luckily don't change because memory is binded.
-	Pipelines luckily don't change based off new gpu data. Commandbuffers have to change though. So really if you change gpu data your only going to have to re-create command buffers.
+	For frames in flight you have multiple gpu datas like buffers and images including render targets. So you need multiple descriptosets for these which luckily don't change because memory is binded.
+	Pipelines luckily don't change based off new gpu data. Commandbuffers have to change though. So really if you change gpu data your only going to have to re-create command buffers. Also
+	your render attachments need to be unique as well so you don't overwrite them. Luckily its just new image/imageviews and framebuffer. Besides this you just re-create the commandbuffers.
 	So really if you make a change you should just alert all command buffers to be recreated when they are not currently in flight. maybe have a fence connected too each.
 
 --QUEUES--

@@ -3,6 +3,7 @@
 #include "vkcoreDevice.h"
 #include "vkcorePrintHelper.h"
 #include "PhysicalDeviceQuery.h"
+#include "VulkanHelpers.h"
 #include <optional>
 #include <set>
 
@@ -47,40 +48,20 @@ namespace Gibo {
 		vkDestroyInstance(Instance, nullptr);
 	}
 
-	bool vkcoreDevice::CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent)
+	bool vkcoreDevice::CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, int framesinflight)
 	{
 		bool valid = true;
+
 		valid = valid && CreateVulkanInstance(name);
 		valid = valid && CreateSurface(window);
 		valid = valid && PickPhysicalDevice();
 		valid = valid && CreateLogicalDevice();
-		valid = valid && CreateSwapChain(window_extent);
+		valid = valid && CreateSwapChain(window_extent, framesinflight);
 		valid = valid && CreateAllocator();
 
 		renderpassCache = new RenderPassCache(LogicalDevice);
-		RenderPassAttachment colorattachment(0, VK_FORMAT_R8G8B8A8_SINT, VK_SAMPLE_COUNT_4_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::COLOR);
-		RenderPassAttachment resolve(1, VK_FORMAT_R8G8B8A8_SINT, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
-			VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::RESOLVE);
-		RenderPassAttachment depth(2, findDepthFormat(PhysicalDevice), VK_SAMPLE_COUNT_4_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::DEPTH);
-		RenderPassAttachment atts[3] = { colorattachment, resolve, depth };
-
-		VkRenderPass rendpass = renderpassCache->GetRenderPass(atts, 3, VK_PIPELINE_BIND_POINT_GRAPHICS);
-
 		samplerCache = new SamplerCache(LogicalDevice);
-
-		SamplerKey key(VK_FILTER_LINEAR, VK_FILTER_LINEAR, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-			false, 0.0, VK_BORDER_COLOR_INT_OPAQUE_WHITE, VK_SAMPLER_MIPMAP_MODE_LINEAR, 0.0, 1.0, 0.0);
-		SamplerKey key2(VK_FILTER_NEAREST, VK_FILTER_NEAREST, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER,
-			false, 0.0, VK_BORDER_COLOR_INT_OPAQUE_WHITE, VK_SAMPLER_MIPMAP_MODE_LINEAR, 0.5, 1.0, 0.0);
-		VkSampler sampler1 = samplerCache->GetSampler(key);
-		VkSampler sampler2 = samplerCache->GetSampler(key);
-		VkSampler sampler3 = samplerCache->GetSampler(key);
-		VkSampler sampler4 = samplerCache->GetSampler(key2);
-
 		pipelineCache = new PipelineCache(LogicalDevice);
-
 		cmdpoolCache = new CommandPoolCache(LogicalDevice, PhysicalDevice, Surface);
 		cmdpoolCache->PrintInfo();
 
@@ -310,8 +291,7 @@ namespace Gibo {
 
 		//pick which physical device extension we need to support
 		const std::vector<const char*> deviceExtensions = {
-			"VK_KHR_swapchain",
-			"VK_KHR_buffer_device_address"
+			"VK_KHR_swapchain"
 		};
 
 		VkDeviceCreateInfo info{};
@@ -350,7 +330,7 @@ namespace Gibo {
 		return true;
 	}
 
-	bool vkcoreDevice::CreateSwapChain(VkExtent2D& window_extent)
+	bool vkcoreDevice::CreateSwapChain(VkExtent2D& window_extent, int framesinflight)
 	{
 		//Presentation mode
 		//IMMEDIATE: images are just immediately replacing previous ones. screen tearing happens
@@ -386,7 +366,7 @@ namespace Gibo {
 		}
 
 		//Pick format and color space
-		VkFormat desired_format = VK_FORMAT_R8G8B8A8_UNORM;
+		VkFormat desired_format = VK_FORMAT_R16G16B16A16_SFLOAT; //VK_FORMAT_R8G8B8A8_UINT
 		VkColorSpaceKHR desired_colorspace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR;
 		VkSurfaceFormatKHR thesurfaceformat;
 
@@ -476,7 +456,7 @@ namespace Gibo {
 		Logger::Log("size of swapchain images: (", window_extent.width, ", ", window_extent.height, ")\n");
 
 		//Pick how many images to create
-		uint32_t desired_image_count = 4;
+		uint32_t desired_image_count = framesinflight;
 		uint32_t minimum_image_count = capabilities.minImageCount + 1;
 		if (minimum_image_count < desired_image_count && desired_image_count < capabilities.maxImageCount)
 		{
@@ -485,7 +465,7 @@ namespace Gibo {
 		Logger::Log("image count: ", minimum_image_count, "\n");
 
 		//Pick desired image usage. COLOR_ATTACMENT has to be here. Adding more can hurt performance so try and use only when needed
-		VkImageUsageFlags desired_image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;// | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; //VK_IMAGE_USAGE_TRANSFER_DST_BIT for post-processing
+		VkImageUsageFlags desired_image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;// | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; //VK_IMAGE_USAGE_TRANSFER_DST_BIT for post-processing
 		VkImageUsageFlags image_usage = 0;
 
 		if (desired_image_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT && capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
@@ -499,6 +479,14 @@ namespace Gibo {
 		if (desired_image_usage & VK_IMAGE_USAGE_TRANSFER_DST_BIT && capabilities.supportedUsageFlags & VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 		{
 			image_usage |= VK_IMAGE_USAGE_TRANSFER_DST_BIT;
+		}
+		if (desired_image_usage & VK_IMAGE_USAGE_STORAGE_BIT && capabilities.supportedUsageFlags & VK_IMAGE_USAGE_STORAGE_BIT)
+		{
+			image_usage |= VK_IMAGE_USAGE_STORAGE_BIT;
+		}
+		else
+		{
+			Logger::LogError("swap chain format doesn't support storage bit\n");
 		}
 
 		//Pick desired transform
@@ -578,6 +566,8 @@ namespace Gibo {
 		{
 			swapChainImageViews.push_back(CreateImageView(LogicalDevice, swapChainImages[i], swapinfo.imageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D));
 		}
+
+		SwapChainFormat = thesurfaceformat.format;
 
 		return true;
 	}
@@ -743,42 +733,39 @@ namespace Gibo {
 		return true;
 	}
 
+	bool vkcoreDevice::CreateBufferStaged(VkDeviceSize size, void* data, VkBufferUsageFlags usage, VmaMemoryUsage memusage, vkcoreBuffer& vkbuffer,
+		VkAccessFlagBits dstacces, VkPipelineStageFlagBits dststage)
+	{
+		bool valid = true;
+		if (memusage != VMA_MEMORY_USAGE_GPU_ONLY)
+		{
+			Logger::LogWarning("Staging a buffer that isn't gpu_only?\n");
+		}
+
+		//create buffers
+		vkcoreBuffer stagingbuffer;
+		valid = valid && CreateBuffer(size, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, stagingbuffer);
+		valid = valid && CreateBuffer(size, usage | VK_BUFFER_USAGE_TRANSFER_DST_BIT, memusage, 0, vkbuffer);
+		
+		//map and fill staging
+		BindData(stagingbuffer.allocation, data, size);
+
+		//copy over
+		CopyBufferToBuffer(*this, stagingbuffer.buffer, vkbuffer.buffer, dstacces, dststage, 0, 0, size);
+
+		//free staging buffer todo - maybe you want to store this if your doing every other frame?
+		DestroyBuffer(stagingbuffer);
+
+		buffer_allocations++;
+		return valid;
+	}
+
 	void vkcoreDevice::DestroyBuffer(vkcoreBuffer& vkbuffer)
 	{
 		buffer_allocations--;
 		vmaDestroyBuffer(Allocator, vkbuffer.buffer, vkbuffer.allocation);
 	}
 
-	//AMD can't even make a simple handle work without causing stack corruption
-	void vkcoreDevice::PrintVMAStats()
-	{
-		//VmaBudget budget;
-		//vmaGetBudget(Allocator, &budget); //can be used every frame
-		//Logger::Log("-----VMA STATS-----\n");
-		//Logger::Log("gpu budget: ", budget.budget, " program usage: ", budget.usage, " blockbytes: ", budget.blockBytes, " allocationBytes: ", budget.allocationBytes, "\n");
-
-		//VmaStats stats;
-		//vmaCalculateStats(Allocator, &stats);//expensive
-
-		/* COMMAND POOL NOTES
-		When one or many command buffers are submitted for execution the API user has to guarantee to not free the command buffers,
-		or any of the resources referenced in the command buffers, before they have been fully consumed by the GPU.
-
-		For frames in flight you have multiple gpu datas like buffers and images. So you need multiple descriptosets for these which luckily don't change because memory is binded.
-		Pipelines luckily don't change based off new gpu data. Commandbuffers have to change though. So really if you change gpu data your only going to have to re-create command buffers.
-		So really if you make a change you should just alert all command buffers to be recreated when they are not currently in flight. maybe have a fence connected too each.
-
-		Recreate the main command buffer every frame. other command buffers that are static can just create at the start.
-		maybe research second command buffers, multithreading, and ways to recreate command buffers for efficiently
-
-		recording->executing->done
-		its best to minimize command buffers and have larger ones so gpu doesn't stall
-
-		VK_COMMAND_POOL_CREATE_TRANSIENT_BIT specifies that command buffers allocated from the pool will be short-lived, meaning that they will be reset or freed in a relatively short timeframe.
-		VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT allows any command buffer allocated from a pool to be individually reset to the initial state
-		VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;  puts it in invalid state start submission, so you have to make sure to reset it first before rerecording
-		*/
-	}
 
 	VkCommandBuffer vkcoreDevice::beginSingleTimeCommands(POOL_FAMILY familyoperation)
 	{
@@ -786,15 +773,15 @@ namespace Gibo {
 		{
 			VkCommandBuffer buffer;
 			
-			VkCommandBufferAllocateInfo info;
+			VkCommandBufferAllocateInfo info = {};
 			info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 			info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 			info.commandPool = cmdpoolCache->GetCommandPool(POOL_TYPE::HELPER, familyoperation);
 			info.commandBufferCount = 1;
 
-			vkAllocateCommandBuffers(LogicalDevice, &info, &buffer);
+			VULKAN_CHECK(vkAllocateCommandBuffers(LogicalDevice, &info, &buffer), "allocating one time cmd");
 			
-			VkCommandBufferBeginInfo begininfo;
+			VkCommandBufferBeginInfo begininfo = {};
 			begininfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 			begininfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
 			
@@ -808,9 +795,9 @@ namespace Gibo {
 	{
 		if (cmdpoolCache)
 		{
-			vkEndCommandBuffer(buffer);
+			VULKAN_CHECK(vkEndCommandBuffer(buffer), "ending one time command");
 
-			VkSubmitInfo submitinfo;
+			VkSubmitInfo submitinfo = {};
 			submitinfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 			submitinfo.pCommandBuffers;
 			submitinfo.commandBufferCount = 1;
@@ -833,9 +820,15 @@ namespace Gibo {
 			{
 				queue = PresentQueue;
 			}
+			VkFence fence;
+			VkFenceCreateInfo info = {};
+			info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+			vkCreateFence(LogicalDevice, &info, nullptr, &fence);
 
-			vkQueueSubmit(queue, 1, &submitinfo, VK_NULL_HANDLE);
-			//vkQueueWaitIdle(queue);
+			VULKAN_CHECK(vkQueueSubmit(queue, 1, &submitinfo, fence), "submitting one time command");
+
+			vkWaitForFences(LogicalDevice, 1, &fence, VK_TRUE, UINT32_MAX);
+			vkDestroyFence(LogicalDevice, fence, nullptr);
 
 			vkFreeCommandBuffers(LogicalDevice, cmdpoolCache->GetCommandPool(POOL_TYPE::HELPER, familyoperation), 1, &buffer);
 		}

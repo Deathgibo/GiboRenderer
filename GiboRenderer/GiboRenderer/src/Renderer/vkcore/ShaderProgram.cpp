@@ -28,7 +28,7 @@ namespace Gibo {
 	}
 
 	bool ShaderProgram::Create(VkDevice device, uint32_t framesinflight, shadersinfo* shaderinformation, uint32_t shaderinfo_count, descriptorinfo* globaldescriptors, uint32_t global_count,
-			    descriptorinfo* localdescriptors, uint32_t local_count, uint32_t maxlocaldescriptorsallowed)
+			    descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed)
 	{
 		Logger::LogInfo("Creating shader program: ", shaderinformation->name, "\n");
 		deviceref = device;
@@ -119,7 +119,7 @@ namespace Gibo {
 		//when creating pool you just give the block size and how many blocks you want. Then you can allocate and deallocate which doesn't actually allocate any memory.
 		//if you need to you can flush out the whole pool 
 		//A simple way if you run out of space, you could hold an array of these and create a new pool when you need too.
-		uint32_t localpool_maxSets = maxlocaldescriptorsallowed * framesinflight;//maximum number of objects we can allocate for this shader
+		uint32_t localpool_maxSets = (maxlocaldescriptorsallowed * framesinflight) + 1;//maximum number of objects we can allocate for this shader
 		uint32_t globalpool_maxsets = 1 * framesinflight;//global just needs 1 per frame in flight
 
 		std::vector<VkDescriptorPoolSize> GlobalpoolSizes;
@@ -129,6 +129,15 @@ namespace Gibo {
 			VkDescriptorPoolSize poolinfo = {};
 			poolinfo.descriptorCount = globalpool_maxsets; //is the number of descriptors of that type to allocate
 			poolinfo.type = ginfo->type;
+			GlobalpoolSizes.push_back(poolinfo);
+		}
+		//if we don't have global descriptor just create a dummy one
+		if (global_count == 0)
+		{
+			descriptorinfo ginfo("dummy", 9, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+			VkDescriptorPoolSize poolinfo = {};
+			poolinfo.descriptorCount = 1; //is the number of descriptors of that type to allocate
+			poolinfo.type = ginfo.type;
 			GlobalpoolSizes.push_back(poolinfo);
 		}
 		VkDescriptorPoolCreateInfo GlobalpoolInfo = {};
@@ -152,6 +161,15 @@ namespace Gibo {
 			poolinfo.type = ginfo->type;
 			LocalpoolSizes.push_back(poolinfo);
 		}
+		//if we don't have local descriptor just create a dummy one
+		if (local_count == 0)
+		{
+			descriptorinfo ginfo("dummy", 10, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT);
+			VkDescriptorPoolSize poolinfo = {};
+			poolinfo.descriptorCount = 1; //is the number of descriptors of that type to allocate
+			poolinfo.type = ginfo.type;
+			LocalpoolSizes.push_back(poolinfo);
+		}
 		VkDescriptorPoolCreateInfo LocalpoolInfo = {};
 		LocalpoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
 		LocalpoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
@@ -173,6 +191,33 @@ namespace Gibo {
 			is_valid = false;
 		}
 
+		uint32_t total_pcsize = 0;
+		for (int i = 0; i < push_count; i++)
+		{
+			pushconstantinfo* info = pushinfo + i;
+
+			VkPushConstantRange range = {};
+			range.stageFlags = info->shaderstage;
+			range.offset = info->offset;//must be multiple of 4
+			range.size = info->size;//must be multiple of 4
+
+			Push_ConstantRanges.push_back(range);
+
+			total_pcsize += info->size;
+			if ((info->offset % 4) != 0)
+			{
+				Logger::LogError("Push constant offset needs to be a multiple of 4\n");
+			}
+			if ((info->size % 4) != 0)
+			{
+				Logger::LogError("Push constant size needs to be a multiple of 4\n");
+			}
+		}
+		if (total_pcsize > 128)
+		{
+			Logger::LogError("Push constant size greater than 128 bytes\n");
+		}
+
 		return is_valid;
 	}
 	
@@ -182,8 +227,22 @@ namespace Gibo {
 		//we already allocated the memory for the global set per frame in flight just update them
 		for (int i = 0; i < GlobalSet.size(); i++)
 		{
+			if (uniformbuffers[i].size() + imageviews[i].size() != GlobalDescriptorInfo.size())
+			{
+				Logger::LogWarning("global descriptor arrays don't match size of programs descriptorlayout\n");
+			}
 			UpdateDescriptorSet(GlobalSet[i], GlobalDescriptorInfo, uniformbuffers[i].data(), buffersizes[i].data(), imageviews[i].data(), samplers[i].data(), bufferviews[i].data());
 		}
+	}
+
+	void ShaderProgram::SetSpecificGlobalDescriptor(int current_frame, std::vector<vkcoreBuffer>& uniformbuffers, std::vector<uint64_t>& buffersizes, std::vector<VkImageView>& imageviews,
+		std::vector<VkSampler>& samplers, std::vector<VkBufferView>& bufferviews)
+	{
+		if (uniformbuffers.size() + imageviews.size() != GlobalDescriptorInfo.size())
+		{
+			Logger::LogWarning("global descriptor arrays don't match size of programs descriptorlayout\n");
+		}
+		UpdateDescriptorSet(GlobalSet[current_frame], GlobalDescriptorInfo, uniformbuffers.data(), buffersizes.data(), imageviews.data(), samplers.data(), bufferviews.data());
 	}
 
 	void ShaderProgram::AddLocalDescriptor(uint32_t& id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
@@ -197,6 +256,10 @@ namespace Gibo {
 		AllocateSets(sets.data(), sets.size(), LocalPool, LocalLayout);
 		for (int i = 0; i < sets.size(); i++)
 		{
+			if (uniformbuffers[i].size() + imageviews[i].size() != LocalDescriptorInfo.size())
+			{
+				Logger::LogWarning("local descriptor arrays don't match size of programs descriptorlayout\n");
+			}
 			UpdateDescriptorSet(sets[i], LocalDescriptorInfo, uniformbuffers[i].data(), buffersizes[i].data(), imageviews[i].data(), samplers[i].data(), bufferviews[i].data());
 		}
 
@@ -221,17 +284,21 @@ namespace Gibo {
 		VkDescriptorSetAllocateInfo allocInfo = {};
 		allocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 		allocInfo.descriptorPool = pool;
-		allocInfo.descriptorSetCount = sets_size;
+		allocInfo.descriptorSetCount = 1;
 		allocInfo.pSetLayouts = &layout;
 
-		VkResult result = vkAllocateDescriptorSets(deviceref, &allocInfo, sets);
-		VULKAN_CHECK(result, "allocating descriptor sets");
-
-		if (result != VK_SUCCESS)
+		bool valid = true;
+		for (int i = 0; i < sets_size; i++)
 		{
-			return false;
+			VkResult result = vkAllocateDescriptorSets(deviceref, &allocInfo, sets + i);
+			VULKAN_CHECK(result, "allocating descriptor sets");
+			if (result != VK_SUCCESS)
+			{
+				valid = false;
+			}
 		}
-		return true;
+
+		return valid;
 	}
 
 	//*this expects the data to be in the same order as the descriptor order you gave the shader on creation based on type. images and views sorted, buffers and sizes sorted.
@@ -342,7 +409,7 @@ namespace Gibo {
 	{
 		std::ifstream file(filename, std::ios::ate | std::ios::binary);
 		if (!file.is_open()) {
-			Logger::LogError("filename: ", filename, '\n');
+			Logger::LogError("failed to open shader file: ", filename, '\n');
 		}
 		size_t fileSize = (size_t)file.tellg();
 		std::vector<char> buffer(fileSize);
