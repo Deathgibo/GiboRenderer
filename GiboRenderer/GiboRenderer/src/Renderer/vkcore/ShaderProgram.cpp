@@ -245,13 +245,11 @@ namespace Gibo {
 		UpdateDescriptorSet(GlobalSet[current_frame], GlobalDescriptorInfo, uniformbuffers.data(), buffersizes.data(), imageviews.data(), samplers.data(), bufferviews.data());
 	}
 
-	void ShaderProgram::AddLocalDescriptor(uint32_t& id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
+	void ShaderProgram::AddLocalDescriptor(uint32_t descriptor_id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
 		                               std::vector<std::vector<VkImageView>>& imageviews, std::vector<std::vector<VkSampler>>& samplers, std::vector<std::vector<VkBufferView>>& bufferviews)
 	{
-		//create and allocate n descriptor sets, store them in our data structure, return the id
-		uint32_t current_id = id_handler.GetNextID();
-
-		std::vector<VkDescriptorSet>& sets = DescriptorSets[current_id];
+		//create and allocate n descriptor sets, store them in our data structure
+		std::vector<VkDescriptorSet>& sets = DescriptorSets[descriptor_id];
 		sets.resize(mframesinflight);
 		AllocateSets(sets.data(), sets.size(), LocalPool, LocalLayout);
 		for (int i = 0; i < sets.size(); i++)
@@ -262,20 +260,16 @@ namespace Gibo {
 			}
 			UpdateDescriptorSet(sets[i], LocalDescriptorInfo, uniformbuffers[i].data(), buffersizes[i].data(), imageviews[i].data(), samplers[i].data(), bufferviews[i].data());
 		}
-
-		id = current_id;
 	}
 	
-	void ShaderProgram::RemoveLocalDescriptor(uint32_t id)
+	void ShaderProgram::RemoveLocalDescriptor(uint32_t descriptor_id)
 	{
 		//free descriptors from the pool, remove from map, and free id
-		std::vector<VkDescriptorSet>& set = DescriptorSets[id];
+		std::vector<VkDescriptorSet>& set = DescriptorSets[descriptor_id];
 		
 		vkFreeDescriptorSets(deviceref, LocalPool, set.size(), set.data());
 
-		DescriptorSets.erase(id);
-
-		id_handler.FreeID(id);
+		DescriptorSets.erase(descriptor_id);
 	}
 
 	//creates n local descriptor sets for each frame in flight for this shader program. Uses the local Pool to allocate n.
@@ -305,6 +299,7 @@ namespace Gibo {
 	void ShaderProgram::UpdateDescriptorSet(VkDescriptorSet descriptorset, const std::vector<descriptorinfo>& descriptorinfo, vkcoreBuffer* uniformbuffers, uint64_t* buffersizes, VkImageView* imageviews, VkSampler* samplers, VkBufferView* bufferviews)
 	{
 		std::vector<VkWriteDescriptorSet> descriptorWrites;
+		descriptorWrites.reserve(descriptorinfo.size());
 		std::vector<VkDescriptorBufferInfo> bufferinfos(descriptorinfo.size());
 		std::vector<VkDescriptorImageInfo> imageinfos(descriptorinfo.size());
 		int buffercounter = 0;

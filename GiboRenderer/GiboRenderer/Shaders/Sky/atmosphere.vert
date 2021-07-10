@@ -58,11 +58,12 @@ void main(){
 	{
 		vec3 corner_vector = normalize(vec3(info.farplane.x * inPosition.x, info.farplane.y * inPosition.y, info.farplane.z));
 		vec3 frustum_corner = (inverse(pv.view) * vec4(info.farplane.x * -inPosition.x, info.farplane.y * inPosition.y, info.farplane.z,0)).xyz;
-		vec3 frustrum_normal = frustum_corner - info.campos.xyz; //this is the correct way to do this but it breaks with atmosphere, perhaps because of bad computations with campos
+		vec3 frustrum_normal = frustum_corner;// - info.campos.xyz; //this is the correct way to do this but it breaks with atmosphere, perhaps because of bad computations with campos
 		fragNormal = frustrum_normal;
 		//fragNormal = mat3(transpose(inverse(pv.view))) * corner_vector;
 		//fragNormal.y = -fragNormal.y;
 		//fragNormal.x = -fragNormal.x;
 		fragNormal = -fragNormal;
 	}
+
 }

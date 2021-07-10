@@ -1,0 +1,56 @@
+memory manager uses:
+	. One use is that you want to make sure you have enough memory and don't randomly run out and crash, so you can do most memory before           the program ones
+	. Another is debugging, you can manage your memory allocations and deallocations easily looking at how much memory you have, average 	  allocation size, etc. You can't do this with new and delete or malloc
+        . Another thing is fragmentation, using new and delete you have no contorl over it and eventually you might not be able to allocate 	  large blocks and you crash, with your own allocator you can avoid this or run defragmentation routines
+        . Another thing simply is speed. Because you know your use case for memory sometiems you can just create a stack and pre allocate 	  everything making allocations 10 fold faster. You can do other optimizations.
+	. Making your allocator so you can reduce cache hits is important
+
+memory allocator:
+	. stack based allocators
+	. pool based allocators: fast allocation for blocks of a predefined size. So command buffers, pipelines, speeds up performance 	  allocating thousands of objects of same type instead of fragmented mallocs.
+	. frame based memory manager: you use a pool or stack and clear the memory every frame, like culling data you don't need next frame
+
+cache misses:
+	compulsory misses the first time a page is loaded will produce unavoidable misses
+	capacity miss happens when the data cannot fit in the available cache space
+	conflict misses when data is mapped to same cache lines, it can result in cache thrashing
+
+practical tips:
+	*the main thing is reducing size of data and icnreasting both spatial and temporal locality of the data processed.
+	Rearrange: change layout to increase spatial locality. When you use data make the data around it used as well.
+	Reduce: smaller/smater formats, compression. You want your data to be able to fit in the cache to reduce capacity miss
+	Reuse: increase temporal (and spatial) locality. When you use data try and reuse it multiple times at once, as well as neighboring data 		 at once
+        . using smaller data types, making sure nothing is redundant.
+        . data locality can be helped by allowing data to be accessed in a mroe predicabtle, linear fashion. Also breaking large data into 	  smaller chunks that can each fit into cache
+	. don't make your cache have to keep replacing blocks because you are accessing random memory from all over the place
+	. break loops into cached sized chunks. Loops are the best example of temporal locality, you dont want things to keep replacing them in 	 	  cache. Really its make sure your not accessing multiple large chunks of memory in the same loop.
+	. avoid creeping featurism: keep functionality as simple as possible. if something handles multiple cases but one occurs at a time, 	 	  provide multiple functions. Its like reducing branching almost.
+	. reducing large if statements help locality. maybe merging them into one.
+	. Caches on average are 64 bytes, if you have an object larger than that it can potentially kick out two cache lines. This is why 	  reducing class/object size is important. Or at least clumping common data together in classes, so maybe you have a giant class where 	  you have a seperate struct for its velocity/movement data, one for its rendering, etc so each can be smaller than 64 and share the           same cache line
+stack:
+	memory is arranged in contiguous LIFO so its faster
+        static size data, not able to grow is one restriction 
+	allocating and deallocing is fast beacuse its a stack structure incrementing or decrementing a pointer
+	also efficiently resuses bytes that are directly mapped to the cache
+
+heap:
+	dynamically allocated memory.
+	slower access, allocation, deallocation
+	tip: create a large blocks of heap and dole these out to arrays when needed, creating a local memory manager
+
+cache notes:
+	L1 and L2 caches. L1 is as fast as cpu. You check L1 first, then L2, then RAM.
+
+structure optimizations:
+	decrease the overall size of the structure: don't use more bits than necessary so more data fits into a cache line and number of memory 	feteches required to access structure fields is reduced
+	reorder fields within the structure: those typically accessed together are stored together
+	split structurees into hot and cold parts: move frequeuntly used ones into seperate structure than least used ones
+	do not store data that can be computed from already stored data: this reduces memory size and fetches
+	use smaller integeres where possible: consider ints of 8 and 16 bits not always 32. float/doubles, etc
+	use bit fields instead of booleans: bools can have different sizes of memory bit fields reduce size by factor of 8 and more
+	use offsets instead of pointers to index data structures: even for the offset use 2 bytes to hold 2^16 objects or 1 byte to offset 2^8 	     objects
+        . When you make structs do larger objects first then smaller. Also try to align them by their relative offsets
+	
+prefetching and preloading:
+	pretty much when you hit a cache miss sometimes you can still execute cpu commands. You make sure its not too long after or cache gets 	reused or not too short for stall. 
+	Something you can do is for example in a loop fetch data your going to need in the next loop while processing data in current loop. it 	depends but maybe 4 at time is good less more, etc.

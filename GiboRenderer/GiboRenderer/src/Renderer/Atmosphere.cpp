@@ -7,7 +7,7 @@
 
 namespace Gibo {
 
-	void Atmosphere::Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform)
+	void Atmosphere::Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count)
 	{
 		//set info
 		float EARTH_RADIUS = 6360000.f;
@@ -15,9 +15,9 @@ namespace Gibo {
 		glm::vec3 f3EarthCentre = -glm::vec3(0, 1, 0) * EARTH_RADIUS;
 		info.earth_center = f3EarthCentre;
 		info.earth_radius = EARTH_RADIUS;
-		info.image_width = 32;
-		info.image_height = 256;
-		info.image_depth = 32;
+		info.image_width = lut_width;
+		info.image_height = lut_height;
+		info.image_depth = lut_depth;
 		info.sun_intensity = glm::vec3(.9, .9, .9);
 		info.atmosphere_height = ATM_TOP_HEIGHT;
 
@@ -67,8 +67,8 @@ namespace Gibo {
 		deviceref.CreateImage(VK_IMAGE_TYPE_3D, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, info.image_width, info.image_height, info.image_depth,
 			1, 1, VMA_MEMORY_USAGE_GPU_ONLY, 0, atmosphereLUT);
 
-		CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
-		CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
+		PhysicalDeviceQuery::CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT);
+		PhysicalDeviceQuery::CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT);
 
 		atmosphereview = CreateImageView(deviceref.GetDevice(), atmosphereLUT.image, format, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_3D);
 
@@ -234,24 +234,7 @@ namespace Gibo {
 		pipeline_ambient = deviceref.GetPipelineCache().GetComputePipeline(program_ambient.GetShaderStageInfo()[0], &program_ambient.GetGlobalLayout(), 1);
 
 
-		PipelineData pipelinedata(window_extent.width, window_extent.height);
-
-		pipelinedata.ColorBlendstate.blendenable = VK_FALSE;
-
-		pipelinedata.Rasterizationstate.cullmode = VK_CULL_MODE_NONE; // VK_CULL_MODE_FRONT_BIT
-		pipelinedata.Rasterizationstate.frontface = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-		pipelinedata.Rasterizationstate.polygonmode = VK_POLYGON_MODE_FILL;
-
-		pipelinedata.DepthStencilstate.depthtestenable = VK_TRUE;
-		pipelinedata.DepthStencilstate.depthcompareop = VK_COMPARE_OP_LESS_OR_EQUAL;
-		pipelinedata.DepthStencilstate.depthwriteenable = VK_FALSE;
-
-		pipelinedata.Multisamplingstate.samplecount = VK_SAMPLE_COUNT_1_BIT;
-		pipelinedata.Inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-
-		pipeline_sky = deviceref.GetPipelineCache().GetGraphicsPipeline(pipelinedata, deviceref.GetPhysicalDevice(), renderpass, program_sky.GetShaderStageInfo(), program_sky.GetPushRanges(),
-			&program_sky.GetGlobalLayout(), 1);
-
+		CreateSwapChainData(window_extent, renderpass, sample_count);
 
 		//filling descriptors
 
@@ -385,44 +368,102 @@ namespace Gibo {
 		VkCommandBufferBeginInfo beginInfo{};
 		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
+		//TODO - make sure we don't overuse them
+		VkPhysicalDeviceLimits limits = PhysicalDeviceQuery::GetDeviceLimits(deviceref.GetPhysicalDevice());
+		limits.maxComputeWorkGroupInvocations;
+		
+
 		//single-scatter
 		VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_singlescatter, &beginInfo), "begin single scatter cmdbuffer");
-		int WORKGROUP_SIZE = 1;
 		vkCmdBindPipeline(cmdbuffer_singlescatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_singlescatter.pipeline);
 		vkCmdBindDescriptorSets(cmdbuffer_singlescatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_singlescatter.layout, 0, 1, &program_singlescatter.GetGlobalDescriptor(0), 0, nullptr);
-		vkCmdDispatch(cmdbuffer_singlescatter, info.image_width / WORKGROUP_SIZE, info.image_height / WORKGROUP_SIZE, info.image_depth / WORKGROUP_SIZE);
+		vkCmdDispatch(cmdbuffer_singlescatter, info.image_width / WORKGROUP_SIZE.x, info.image_height / WORKGROUP_SIZE.y, info.image_depth / WORKGROUP_SIZE.z);
 		VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_singlescatter), "end cmdbuffer");
 
 		if (K > 0)
 		{
 			//multi-scatter
 			VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_multiscatter, &beginInfo), "begin multi scatter cmdbuffer");
-			WORKGROUP_SIZE = 1;
 			vkCmdBindPipeline(cmdbuffer_multiscatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_multiscatter.pipeline);
 			vkCmdBindDescriptorSets(cmdbuffer_multiscatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_multiscatter.layout, 0, 1, &program_multiscatter.GetGlobalDescriptor(0), 0, nullptr);
-			vkCmdDispatch(cmdbuffer_multiscatter, info.image_width / WORKGROUP_SIZE, info.image_height / WORKGROUP_SIZE, info.image_depth / WORKGROUP_SIZE);
+			vkCmdDispatch(cmdbuffer_multiscatter, info.image_width / WORKGROUP_SIZE.x, info.image_height / WORKGROUP_SIZE.y, info.image_depth / WORKGROUP_SIZE.z);
 			VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_multiscatter), "end cmdbuffer");
 
 			//combine
 			VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_combine, &beginInfo), "begin combine cmdbuffer");
-			WORKGROUP_SIZE = 1;
 			vkCmdBindPipeline(cmdbuffer_combine, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_combine.pipeline);
 			vkCmdBindDescriptorSets(cmdbuffer_combine, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_combine.layout, 0, 1, &program_combine.GetGlobalDescriptor(0), 0, nullptr);
-			vkCmdDispatch(cmdbuffer_combine, info.image_width / WORKGROUP_SIZE, info.image_height / WORKGROUP_SIZE, info.image_depth / WORKGROUP_SIZE);
+			vkCmdDispatch(cmdbuffer_combine, info.image_width / WORKGROUP_SIZE.x, info.image_height / WORKGROUP_SIZE.y, info.image_depth / WORKGROUP_SIZE.z);
 			VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_combine), "end cmdbuffer");
 		}
 		//ambient
 		VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_ambient, &beginInfo), "begin ambient cmdbuffer");
-		WORKGROUP_SIZE = 1;
 		vkCmdBindPipeline(cmdbuffer_ambient, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_ambient.pipeline);
 		vkCmdBindDescriptorSets(cmdbuffer_ambient, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_ambient.layout, 0, 1, &program_ambient.GetGlobalDescriptor(0), 0, nullptr);
-		vkCmdDispatch(cmdbuffer_ambient, ambient_width / WORKGROUP_SIZE, ambient_height / WORKGROUP_SIZE, 1 / WORKGROUP_SIZE);
+		vkCmdDispatch(cmdbuffer_ambient, ambient_width / WORKGROUP_SIZE_AMBIENT.x, ambient_height / WORKGROUP_SIZE_AMBIENT.y, 1 / WORKGROUP_SIZE_AMBIENT.z);
 		VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_ambient), "end cmdbuffer");
 	}
 
 	void Atmosphere::CleanUp()
 	{
+		for (int i = 0; i < shaderinfo_buffer.size(); i++)
+		{
+			deviceref.DestroyBuffer(shaderinfo_buffer[i]);
+		}
+		//TODO - free up my one time memory stuff after were done
+		deviceref.DestroyBuffer(info_buffer);
+		deviceref.DestroyBuffer(skymatrix_buffer);
+	
 
+		deviceref.DestroyImage(atmosphereLUT);
+		vkDestroyImageView(deviceref.GetDevice(), atmosphereview, nullptr);
+
+		deviceref.DestroyImage(MieLUT);
+		vkDestroyImageView(deviceref.GetDevice(), Mieview, nullptr);
+
+		for (int i = 0; i < gatheredLUT.size(); i++)
+		{
+			deviceref.DestroyImage(gatheredLUT[i]);
+			vkDestroyImageView(deviceref.GetDevice(), gatheredView[i], nullptr);
+
+			deviceref.DestroyImage(MiegatheredLUT[i]);
+			vkDestroyImageView(deviceref.GetDevice(), MiegatheredView[i], nullptr);
+		}
+
+		deviceref.DestroyImage(ambientLUT);
+		vkDestroyImageView(deviceref.GetDevice(), ambientview, nullptr);
+
+		deviceref.DestroyImage(transmittanceLUT);
+		vkDestroyImageView(deviceref.GetDevice(), transmittanceview, nullptr);
+
+
+
+		program_sky.CleanUp();
+		program_singlescatter.CleanUp();
+		program_multiscatter.CleanUp();
+		program_combine.CleanUp();
+		program_ambient.CleanUp();
+
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_sky.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_sky.pipeline, nullptr);
+		
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_singlescatter.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_singlescatter.pipeline, nullptr);
+		
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_multiscatter.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_multiscatter.pipeline, nullptr);
+		
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_combine.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_combine.pipeline, nullptr);
+		
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_ambient.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_ambient.pipeline, nullptr);
+
+
+		vkFreeCommandBuffers(deviceref.GetDevice(), deviceref.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::COMPUTE), 1, &cmdbuffer_singlescatter);
+		vkFreeCommandBuffers(deviceref.GetDevice(), deviceref.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::COMPUTE), 1, &cmdbuffer_multiscatter);
+		vkFreeCommandBuffers(deviceref.GetDevice(), deviceref.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::COMPUTE), 1, &cmdbuffer_combine);
+		vkFreeCommandBuffers(deviceref.GetDevice(), deviceref.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::COMPUTE), 1, &cmdbuffer_ambient);
 	}
 
 	void Atmosphere::FillLUT()
@@ -497,10 +538,9 @@ namespace Gibo {
 				VkCommandBufferBeginInfo beginInfo{};
 				beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 				VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_multiscatter, &beginInfo), "begin multi scatter cmdbuffer");
-				int WORKGROUP_SIZE = 1;
 				vkCmdBindPipeline(cmdbuffer_multiscatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_multiscatter.pipeline);
 				vkCmdBindDescriptorSets(cmdbuffer_multiscatter, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_multiscatter.layout, 0, 1, &program_multiscatter.GetGlobalDescriptor(0), 0, nullptr);
-				vkCmdDispatch(cmdbuffer_multiscatter, info.image_width / WORKGROUP_SIZE, info.image_height / WORKGROUP_SIZE, info.image_depth / WORKGROUP_SIZE);
+				vkCmdDispatch(cmdbuffer_multiscatter, info.image_width / WORKGROUP_SIZE.x, info.image_height / WORKGROUP_SIZE.y, info.image_depth / WORKGROUP_SIZE.z);
 				VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_multiscatter), "end cmdbuffer");
 			}
 		}
@@ -563,10 +603,9 @@ namespace Gibo {
 					VkCommandBufferBeginInfo beginInfo{};
 					beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 					VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_combine, &beginInfo), "begin combine cmdbuffer");
-					int WORKGROUP_SIZE = 1;
 					vkCmdBindPipeline(cmdbuffer_combine, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_combine.pipeline);
 					vkCmdBindDescriptorSets(cmdbuffer_combine, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_combine.layout, 0, 1, &program_combine.GetGlobalDescriptor(0), 0, nullptr);
-					vkCmdDispatch(cmdbuffer_combine, info.image_width / WORKGROUP_SIZE, info.image_height / WORKGROUP_SIZE, info.image_depth / WORKGROUP_SIZE);
+					vkCmdDispatch(cmdbuffer_combine, info.image_width / WORKGROUP_SIZE.x, info.image_height / WORKGROUP_SIZE.y, info.image_depth / WORKGROUP_SIZE.z);
 					VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_combine), "end cmdbuffer");
 				}
 			}
@@ -642,6 +681,42 @@ namespace Gibo {
 	void Atmosphere::BindAtmosphereBuffer(int x)
 	{
 		deviceref.BindData(shaderinfo_buffer[x].allocation, &shader_info, sizeof(atmosphere_shader));
+	}
+
+	void Atmosphere::CreateSwapChainData(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
+	{
+		PipelineData pipelinedata(window_extent.width, window_extent.height);
+
+		pipelinedata.ColorBlendstate.blendenable = VK_FALSE;
+
+		pipelinedata.Rasterizationstate.cullmode = VK_CULL_MODE_NONE; // VK_CULL_MODE_FRONT_BIT
+		pipelinedata.Rasterizationstate.frontface = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		pipelinedata.Rasterizationstate.polygonmode = VK_POLYGON_MODE_FILL;
+
+		pipelinedata.DepthStencilstate.depthtestenable = VK_TRUE;
+		pipelinedata.DepthStencilstate.depthcompareop = VK_COMPARE_OP_LESS_OR_EQUAL;
+		pipelinedata.DepthStencilstate.depthwriteenable = VK_FALSE;
+
+		pipelinedata.Multisamplingstate.samplecount = sample_count;
+		pipelinedata.Multisamplingstate.sampleshadingenable = VK_TRUE;
+		pipelinedata.Multisamplingstate.minsampleshading = .5;
+
+
+		pipelinedata.Inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+
+		pipeline_sky = deviceref.GetPipelineCache().GetGraphicsPipeline(pipelinedata, deviceref.GetPhysicalDevice(), renderpass, program_sky.GetShaderStageInfo(), program_sky.GetPushRanges(),
+			&program_sky.GetGlobalLayout(), 1);
+	}
+
+	void Atmosphere::SwapChainRecreate(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
+	{
+		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_sky.layout, nullptr);
+		vkDestroyPipeline(deviceref.GetDevice(), pipeline_sky.pipeline, nullptr);
+
+		//recreate
+		CreateSwapChainData(window_extent, renderpass, sample_count);
+
+		UpdateFarPlane(window_extent);
 	}
 
 	void Atmosphere::Draw(VkCommandBuffer cmdbuffer, int current_frame)

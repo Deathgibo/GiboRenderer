@@ -1,6 +1,7 @@
 #pragma once
 #include "RenderObject.h"
 #include <array>
+
 namespace Gibo {
 	/*
 	Render Objects are the most important thing in the render engine. They describe all the objects were going to render and are the main dynamic aspect of the whole engine.
@@ -25,15 +26,46 @@ namespace Gibo {
 	public:
 		enum BIN_TYPE : int { REGULAR, BLENDABLE };
 		static const int BIN_SIZE = 2;
-		static const int MAX_OBJECTS_ALLOWED = 50; //this is the number of max objects allowed so we can preallocate for some data-structures
+		static const int MAX_OBJECTS_ALLOWED = 150; //this is the number of max objects allowed so we can preallocate for some data-structures
 		
-		struct graveyardinfo {
+		struct graveyardinfo 
+		{
 			RenderObject* object;
 			int frame_count;
-			BIN_TYPE type;
 
-			graveyardinfo(RenderObject* a, int b, BIN_TYPE c) : object(a), frame_count(b), type(c) {};
+			graveyardinfo(RenderObject* a, int b) : object(a), frame_count(b) {};
 		};
+		//just a quick way to hand out id's. counter will increment and repeat at IDHELPERSIZE and the slots just represent if that id is taken or not
+		//static constexpr int IDHELPERSIZE = 1000;
+		struct idhelper
+		{
+			std::array<bool, 1000>slots;
+			uint32_t counter;
+
+			idhelper()
+			{
+				slots.fill(false);
+				counter = 0;
+			}
+
+			uint32_t GetNextID()//assumes every slot will never all be true
+			{
+				while (slots[counter] == true)
+				{
+					counter = (counter + 1) % 1000;
+				}
+				uint32_t returncounter = counter;
+				slots[returncounter] = true;
+				counter = (counter + 1) % 1000;
+				return returncounter;
+			}
+
+			void FreeID(uint32_t id)
+			{
+				slots[id] = false;
+			}
+		};
+
 	public:
 		RenderObjectManager(vkcoreDevice& device, int framesinflight) : deviceref(device), maxframesinflight(framesinflight)
 		{
@@ -46,6 +78,9 @@ namespace Gibo {
 
 		void AddRenderObject(RenderObject* object, BIN_TYPE type)
 		{
+			//give object an id
+			object->descriptor_id = idmanager.GetNextID();
+
 			//add render object to data-structures
 
 			//BIN
@@ -57,11 +92,29 @@ namespace Gibo {
 			//other data structures
 		}
 
-		//when you pass this in you surrender the memory you must not use renderobject anymore. The memory can't just be released because frames are in flight.
+		//when you pass this in you surrender the memory you must not use renderobject anymore. The memory can't just be released because frames are in flight. but we can remove them from data structure
 		void RemoveRenderObject(RenderObject* object, BIN_TYPE type)
 		{
-			graveyard.push_back(graveyardinfo(object, 0, type));
-			object->destroyed = true;
+			graveyard.push_back(graveyardinfo(object, 0));
+
+			//remove from every data-structure
+			//BIN
+			for (int i = 0; i < Object_Bin[type].size(); i++)
+			{
+				if (Object_Bin[type][i] == object)
+				{
+					Object_Bin[type].erase(Object_Bin[type].begin() + i);
+				}
+			}
+
+			//VECTOR
+			for (int i = 0; i < Object_vector.size(); i++)
+			{
+				if (object == Object_vector[i])
+				{
+					Object_vector.erase(Object_vector.begin() + i);
+				}
+			}
 		}
 
 		void Update()
@@ -74,7 +127,7 @@ namespace Gibo {
 				///if you update at cpu no dependency stage you need framesinflight + 1, else if you wait for image it can just be framesinflight
 				if (graveyard[i].frame_count > maxframesinflight)
 				{
-					DeleteObject(graveyard[i].object, graveyard[i].type);
+					DeleteObject(graveyard[i].object);
 					graveyard.erase(graveyard.begin() + i);
 				}
 			}
@@ -82,10 +135,13 @@ namespace Gibo {
 
 		void CleanUp()
 		{
+#ifdef _DEBUG
+			if (Object_vector.size() != 0) { Logger::LogError("Not all renderobjects were removed from renderobject manager!\n"); }
+#endif
 			//cleanup data structures and anything left in the graveyard
 			for (int i = 0; i < graveyard.size(); i++)
 			{
-				DeleteObject(graveyard[i].object, graveyard[i].type);
+				DeleteObject(graveyard[i].object);
 			}
 
 			graveyard.clear();
@@ -100,51 +156,25 @@ namespace Gibo {
 		std::vector<RenderObject*>& GetVector() { return Object_vector; }
 
 	private:
-		void DeleteObject(RenderObject* object, BIN_TYPE type)
+		void DeleteObject(RenderObject* object)
 		{
-			//remove from every data-structure and delete
+			//free id
+			idmanager.FreeID(object->descriptor_id);
 
-			//BIN
-			for (int i = 0; i < Object_Bin[type].size(); i++)
-			{
-				if (Object_Bin[type][i] == object)
-				{
-					Object_Bin[type].erase(Object_Bin[type].begin() + i);
-				}
-			}
-
-			//VECTOR
-			Object_vector.clear();
-
-
+			//gpu is not using memory anymore so we are free to delete it
 			delete object;
 			object = nullptr;
 		}
 
 	private:
-		/*
-			This is a data structure for holding objects in different bins that need to be rendered differently. It holds all elements in each bin in a contiguous array for quick looping,
-			and makes it a nice way to groups things and render them all in the same graphics state. like blendable objects, maybe ones that need culling, different geometry modes,etc. 
-			Its implemented an array with a predefined number of bins each holding a  vector of renderobjects. The vector will be a data structure that creates a maxmimum object size conitugous array. 
-			Then it uses a quick way to add and	remove objects without actually deleting the memory and moving all elements over. It acts like a memory pool.
-		*/
-		std::vector<graveyardinfo> graveyard;
-		std::array<std::vector<RenderObject*>, BIN_SIZE> Object_Bin;
-		std::vector<RenderObject*> Object_vector;
+		std::vector<graveyardinfo> graveyard; //data-structure for holding removed objects. since frames are in flight it must wait x amount of frames before actually deleting the memory
+		std::array<std::vector<RenderObject*>, BIN_SIZE> Object_Bin; //a bin structure with holds vectors in each bin, and bins are used for different rendering purposes to group objects
+		std::vector<RenderObject*> Object_vector; //a simple contiguous data structure if you need to loop through every object quickly
 
 		vkcoreDevice& deviceref;
 		int maxframesinflight;
+
+		idhelper idmanager; //dishes out ids to renderobjects submitted and frees id when object is delete.
 	};
 
 }
-
-
-/*
-insert(renderobject*)
-findanddelete(renderobject*)
-
-
-when you insert you look at the head and put the memory there and then return an offset key
-then when you delete you give the offset so it immeditalely finds it and removes it and sets the node pointers.
-
-*/

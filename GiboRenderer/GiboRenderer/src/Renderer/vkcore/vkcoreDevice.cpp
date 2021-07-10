@@ -48,7 +48,7 @@ namespace Gibo {
 		vkDestroyInstance(Instance, nullptr);
 	}
 
-	bool vkcoreDevice::CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, int framesinflight)
+	bool vkcoreDevice::CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, VkExtent2D& Resolution, int framesinflight)
 	{
 		bool valid = true;
 
@@ -249,10 +249,10 @@ namespace Gibo {
 	bool vkcoreDevice::CreateLogicalDevice()
 	{
 		//choose which queues we want to have
-		uint32_t graphicsfamily = GetQueueFamily(PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
-		uint32_t computefamily = GetQueueFamily(PhysicalDevice, VK_QUEUE_COMPUTE_BIT);
-		uint32_t transferfamily = GetQueueFamily(PhysicalDevice, VK_QUEUE_TRANSFER_BIT);
-		uint32_t presentfamily = GetPresentQueueFamily(PhysicalDevice, Surface);
+		uint32_t graphicsfamily = PhysicalDeviceQuery::GetQueueFamily(PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+		uint32_t computefamily = PhysicalDeviceQuery::GetQueueFamily(PhysicalDevice, VK_QUEUE_COMPUTE_BIT);
+		uint32_t transferfamily = PhysicalDeviceQuery::GetQueueFamily(PhysicalDevice, VK_QUEUE_TRANSFER_BIT);
+		uint32_t presentfamily = PhysicalDeviceQuery::GetPresentQueueFamily(PhysicalDevice, Surface);
 
 		std::set<uint32_t> uniqueQueueFamilies = { graphicsfamily, computefamily, transferfamily, presentfamily };
 
@@ -328,6 +328,17 @@ namespace Gibo {
 		vkGetDeviceQueue(LogicalDevice, transferfamily, 0, &TransferQueue);
 
 		return true;
+	}
+
+	void vkcoreDevice::CleanSwapChain()
+	{
+		//swapchain
+		vkDestroySwapchainKHR(LogicalDevice, SwapChain, nullptr);
+		for (int i = 0; i < swapChainImageViews.size(); i++)
+		{
+			vkDestroyImageView(LogicalDevice, swapChainImageViews[i], nullptr);
+		}
+		swapChainImageViews.clear();
 	}
 
 	bool vkcoreDevice::CreateSwapChain(VkExtent2D& window_extent, int framesinflight)
@@ -536,8 +547,8 @@ namespace Gibo {
 		swapinfo.oldSwapchain = VK_NULL_HANDLE;
 
 		//Pick queue families. We need to draw using graphics and present
-		int graphics_family = GetQueueFamily(PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
-		int present_family = GetPresentQueueFamily(PhysicalDevice, Surface);
+		int graphics_family = PhysicalDeviceQuery::GetQueueFamily(PhysicalDevice, VK_QUEUE_GRAPHICS_BIT);
+		int present_family = PhysicalDeviceQuery::GetPresentQueueFamily(PhysicalDevice, Surface);
 		uint32_t queueFamilyIndices[] = { graphics_family, present_family };
 		if (graphics_family != present_family) {
 			swapinfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;

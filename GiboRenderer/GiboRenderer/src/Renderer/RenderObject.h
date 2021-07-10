@@ -10,27 +10,32 @@ namespace Gibo {
 		friend class RenderObjectManager;
 		enum class ROTATE_DIMENSION : uint8_t {XANGLE,YANGLE,ZANGLE};
 	public:
-		RenderObject(vkcoreDevice* device, vkcoreTexture defaulttexture) : material(device, defaulttexture), model_matrix(glm::mat4(1.0)) {};
+		RenderObject(vkcoreDevice* device, vkcoreTexture defaulttexture, int framesinflight) : material(device, defaulttexture), model_matrix(framesinflight){};
 		~RenderObject() = default;
 		 
 		void SetMesh(MeshCache::Mesh Mesh) { mesh = Mesh; }
-		void SetTexture(vkcoreTexture Texture) { texture = Texture; }
+
+		void Update(int framecount);
 
 		void SetTransformation(glm::vec3 position, glm::vec3 scale, ROTATE_DIMENSION dimension, float indegrees);
 
 		Material& GetMaterial() { return material; }
 		MeshCache::Mesh& GetMesh() { return mesh; }
-		vkcoreTexture& GetTexture() { return texture; }
-		glm::mat4& GetMatrix() { return model_matrix; }
+		glm::mat4& GetMatrix(int frame_count) { return model_matrix[frame_count]; }
+		glm::mat4& GetSyncedMatrix() { return internal_matrix; }
+		uint32_t GetId() { return descriptor_id; }
 
 	private:
+		void NotifyUpdate() { needs_updated = true; frames_updated = 0; }
+	private:
+		std::vector<glm::mat4> model_matrix;
+		glm::mat4 internal_matrix;
 		Material material;
 		MeshCache::Mesh mesh;
-		vkcoreTexture texture;
-		glm::mat4 model_matrix;
-		
-		//TODO - maybe look to remove some of these to keep the size of this class as small as possible
-		bool destroyed = false;
+
+		uint32_t descriptor_id; //this is the id all the shaderprograms use when they add this renderobjects descriptor to its map
+		bool needs_updated = false;
+		int frames_updated = 0;
 	};
 
 }

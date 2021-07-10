@@ -46,7 +46,6 @@ namespace Gibo {
 			int specular_map = 0;
 			int metal_map = 0;
 			int normal_map = 0;
-			glm::vec3 alignment;
 		}; //64 bytes
 	public:
 		//TODO right now you need to create textures to add to descriptors. This is wasteful because were allocating memory even tho we might not need these
@@ -63,7 +62,8 @@ namespace Gibo {
 		void SetSilverMaterial();
 
 		inline void SetMaterialInfo(materialinfo info) { material_info = info; BindBuffer(); }
-		inline void SetAlbedo(glm::vec4 val) { material_info.albedo = val; BindBuffer(); }
+		inline void SetAlbedo(glm::vec3 val) { material_info.albedo.x = val.x; material_info.albedo.y = val.y; material_info.albedo.z = val.z; BindBuffer(); }
+		inline void SetAlpha(float val) { material_info.albedo.a = val; BindBuffer(); }
 		inline void SetReflectance(float val) { material_info.reflectance = val; BindBuffer(); }
 		inline void SetMetal(float val) { material_info.metal = val; BindBuffer(); }
 		inline void SetRoughness(float val) { material_info.roughness = val; BindBuffer(); }
@@ -97,10 +97,10 @@ namespace Gibo {
 	private:
 		//cpu data
 		materialinfo material_info;
-		vkcoreBuffer stagingbuffer;
 
 		//gpu data
 		vkcoreBuffer material_buffer;
+		vkcoreBuffer stagingbuffer;
 
 		vkcoreTexture albedo_map;
 		vkcoreTexture specular_map;

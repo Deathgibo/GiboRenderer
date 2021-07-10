@@ -7,9 +7,6 @@ namespace Gibo {
 
 	void TextureCache::CleanUp()
 	{
-		std::unordered_map<textureKey, internaltexture, MyHashFunction> texture2dcache;
-		std::vector<internaltexture> cubemaparray;
-
 		for (auto& texture : texture2dcache)
 		{
 			deviceref.DestroyImage(texture.second.image);
@@ -27,7 +24,7 @@ namespace Gibo {
 
 	void TextureCache::PrintInfo() const
 	{
-		Logger::Log("total memory size ", memory_size, "MB", "2D texture count: ", texture2dcache.size(), "cube array count: ", cubemaparray.size(), "\n");
+		Logger::Log("total memory size ", gpumemory_size / 1000000, "MB", "2D texture count: ", texture2dcache.size(), "cube array count: ", cubemaparray.size(), "\n");
 	}
 
 	//TODO - research more about image format loading higher precision like 16 bit. also dont enforce alpha for saving memory.
@@ -52,34 +49,29 @@ namespace Gibo {
 			miplevels = static_cast<uint32_t>(std::floor(std::log2((texWidth > texHeight) ? texWidth : texHeight))) + 1;
 		}
 		texture.miplevels = miplevels;
-		Logger::Log(filename, " width: ", texWidth, " height: ", texHeight, " miplevels: ", miplevels, " ", imageSize / 100000, "MB", "\n");
+		Logger::Log(filename, " width: ", texWidth, " height: ", texHeight, " miplevels: ", miplevels, " ", imageSize / 1000000, "MB", "\n");
 
-		//we need to pick a format supported by linear sampling if we are going to mip-map
-		VkFormat format = VK_FORMAT_R8G8B8A8_SNORM; //what formats are supported?
-		VkFormat desired_format[4] = { VK_FORMAT_R8G8B8A8_SNORM, VK_FORMAT_R8G8B8A8_SINT, VK_FORMAT_R8G8B8A8_UINT,VK_FORMAT_R8G8B8A8_SNORM };
-		if (mipped)
+		//TODO - find formats that have to be support and try 16 bit textures?
+		//we need to pick a format supported by linear sampling if we are going to mip-map 
+		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB; //what formats are supported?
+		VkFormat desired_format[5] = { VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_SNORM, VK_FORMAT_R8G8B8A8_SINT, VK_FORMAT_R8G8B8A8_UINT,VK_FORMAT_R8G8B8A8_SNORM };
+		for (int i = 0; i < 5; i++)
 		{
-			bool mip_formatfound = false;
-			for (int i = 0; i < 4; i++)
+			if (!PhysicalDeviceQuery::CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), desired_format[i], VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
 			{
-				if (CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), desired_format[i], VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
-				{
-					format = desired_format[i];
-					mip_formatfound = true;
-					break;
-				}
+				Logger::LogWarning("image format not supported for 2D texture sampling");
+				continue;
 			}
 
-			if (!mip_formatfound)
+			if (mipped && !PhysicalDeviceQuery::CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), desired_format[i], VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT))
 			{
-				format = VK_FORMAT_R8G8B8A8_SRGB;
+				Logger::LogWarning("image format not supported for 2D texture linear blitting");
+				continue;
 			}
+
+			format = desired_format[i];
+			break;
 		}
-		if (!CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
-		{
-			Logger::LogWarning("image format not supported for 2D texture");
-		}
-		format = VK_FORMAT_R8G8B8A8_SRGB;
 
 		//create image, imageview
 		deviceref.CreateImage(VK_IMAGE_TYPE_2D, format, VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT, VK_SAMPLE_COUNT_1_BIT, texWidth,
@@ -108,7 +100,7 @@ namespace Gibo {
 		deviceref.DestroyBuffer(stagingbuffer);
 		stbi_image_free(pixels);
 
-		memory_size += imageSize;
+		gpumemory_size += imageSize;
 		return texture;
 	}
 
@@ -141,12 +133,20 @@ namespace Gibo {
 		VkDeviceSize imageSize = texWidth * texHeight * STBI_rgb * 6;
 		VkDeviceSize layerSize = imageSize / 6;
 
-		Logger::LogInfo("loading cubemap: ", paths->c_str(), " ", imageSize / 100000.f, "MB", "\n");
+		Logger::LogInfo("loading cubemap: ", paths->c_str(), " ", imageSize / 1000000.f, "MB", "\n");
 
-		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB;
-		if (!CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), format, VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
+		VkFormat format = VK_FORMAT_R8G8B8A8_SRGB; //what formats are supported?
+		VkFormat desired_format[5] = { VK_FORMAT_R8G8B8A8_SRGB, VK_FORMAT_R8G8B8A8_SNORM, VK_FORMAT_R8G8B8A8_SINT, VK_FORMAT_R8G8B8A8_UINT,VK_FORMAT_R8G8B8A8_SNORM };
+		for (int i = 0; i < 5; i++)
 		{
-			Logger::LogWarning("image format not supported for 2D texture");
+			if (!PhysicalDeviceQuery::CheckImageOptimalFormat(deviceref.GetPhysicalDevice(), desired_format[i], VK_FORMAT_FEATURE_SAMPLED_IMAGE_BIT))
+			{
+				Logger::LogWarning("image format not supported for 2D texture sampling");
+				continue;
+			}
+
+			format = desired_format[i];
+			break;
 		}
 
 		//create image with 6 layers, view with viewtypecube, and sampler
@@ -189,7 +189,7 @@ namespace Gibo {
 		stbi_image_free(pixel5);
 		stbi_image_free(pixel6);
 
-		memory_size += imageSize;
+		gpumemory_size += imageSize;
 		return texture;
 	}
 
@@ -213,9 +213,9 @@ namespace Gibo {
 			texture.view = internaltex.view;
 		}
 
-		bool anisotropy_supported = GetDeviceFeatures(deviceref.GetPhysicalDevice()).samplerAnisotropy;
+		bool anisotropy_supported = PhysicalDeviceQuery::GetDeviceFeatures(deviceref.GetPhysicalDevice()).samplerAnisotropy;
 		SamplerKey sampler_data(magfilter, minfilter, addressmode, addressmode, addressmode, anisotropy_supported, maxanisotropy, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
-			VK_SAMPLER_MIPMAP_MODE_LINEAR, 0.0f, texture2dcache[key].miplevels, 0.0);
+			VK_SAMPLER_MIPMAP_MODE_LINEAR, 0.0, texture2dcache[key].miplevels, 0.0);
 
 		texture.sampler = deviceref.GetSamplerCache().GetSampler(sampler_data);
 
@@ -231,7 +231,7 @@ namespace Gibo {
 		texture.image = internaltex.image.image;
 		texture.view = internaltex.view;
 
-		bool anisotropy_supported = GetDeviceFeatures(deviceref.GetPhysicalDevice()).samplerAnisotropy;
+		bool anisotropy_supported = PhysicalDeviceQuery::GetDeviceFeatures(deviceref.GetPhysicalDevice()).samplerAnisotropy;
 		SamplerKey sampler_data(magfilter, minfilter, addressmode, addressmode, addressmode, anisotropy_supported, maxanisotropy, VK_BORDER_COLOR_FLOAT_TRANSPARENT_BLACK,
 			                    VK_SAMPLER_MIPMAP_MODE_LINEAR, 0.0f, 1, 0.0);
 		texture.sampler = deviceref.GetSamplerCache().GetSampler(sampler_data);

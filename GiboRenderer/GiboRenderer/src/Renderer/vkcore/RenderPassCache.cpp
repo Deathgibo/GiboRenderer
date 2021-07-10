@@ -11,12 +11,14 @@ namespace Gibo {
 
 	void RenderPassCache::Cleanup()
 	{
-		//free every renderpass
+	/*	//free every renderpass
 		for (auto renderpass : mRenderPassArray)
 		{
 			vkDestroyRenderPass(deviceref, renderpass, nullptr);
 		}
 		mRenderPassArray.clear();
+
+	*/
 	}
 
 	VkRenderPass RenderPassCache::GetRenderPass(RenderPassAttachment* attachments, uint32_t attachment_count, VkPipelineBindPoint bindpoint)

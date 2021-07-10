@@ -5,6 +5,11 @@
 
 namespace Gibo {
 
+	/*
+		class for holding light cpu data. It doesn't have any gpu data or any knowledge of the engine really.
+		To use you have to make a light and submit it to the light manager. Then make sure* you remove it before deleting.
+	*/
+
 	class Light
 	{
 	public:

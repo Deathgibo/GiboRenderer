@@ -18,7 +18,7 @@ namespace Gibo {
 	class TextureCache
 	{
 	public:
-		TextureCache(vkcoreDevice& device) : deviceref(device), memory_size(0) {};
+		TextureCache(vkcoreDevice& device) : deviceref(device), gpumemory_size(0) {};
 		~TextureCache() = default;
 
 		//no copying/moving should be allowed from this class
@@ -74,7 +74,7 @@ namespace Gibo {
 		std::vector<internaltexture> cubemaparray;
 
 		vkcoreDevice& deviceref;
-		size_t memory_size;
+		size_t gpumemory_size;
 	};
 }
 

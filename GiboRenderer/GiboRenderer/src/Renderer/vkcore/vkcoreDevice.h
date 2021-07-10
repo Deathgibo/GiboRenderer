@@ -40,6 +40,15 @@ namespace Gibo {
 		{
 
 		}
+
+		DescriptorHelper(int framesinflight, int buffercount, int imagecount) : uniformbuffers(framesinflight), buffersizes(framesinflight), imageviews(framesinflight), samplers(framesinflight), bufferviews(framesinflight)
+		{
+			uniformbuffers.reserve(buffercount);
+			buffersizes.reserve(buffercount);
+			bufferviews.reserve(buffercount);
+			imageviews.reserve(imagecount);
+			samplers.reserve(imagecount);
+		}
 	};
 
 	class vkcoreDevice
@@ -55,7 +64,7 @@ namespace Gibo {
 		vkcoreDevice& operator=(vkcoreDevice const&) = delete;
 		vkcoreDevice& operator=(vkcoreDevice&&) = delete;
 
-		bool CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, int framesinflight);
+		bool CreateDevice(std::string name, GLFWwindow* window, VkExtent2D& window_extent, VkExtent2D& Resolution, int framesinflight);
 		void DestroyDevice();
 
 		//VMA allocation calls
@@ -73,7 +82,11 @@ namespace Gibo {
 		VkCommandBuffer beginSingleTimeCommands(POOL_FAMILY familyoperation);
 		void submitSingleTimeCommands(VkCommandBuffer buffer, POOL_FAMILY familyoperation);
 
+		void CleanSwapChain();
+		bool CreateSwapChain(VkExtent2D& window_extent, int framesinflight);
+
 		//Set/Get
+		VkInstance GetInstace() const { return Instance; }
 		VkPhysicalDevice GetPhysicalDevice() const { return PhysicalDevice; }
 		VkDevice GetDevice() const { return LogicalDevice; }
 		VkSwapchainKHR GetSwapChain() { return SwapChain; }
@@ -103,7 +116,6 @@ namespace Gibo {
 		bool PickPhysicalDevice();
 		bool CreateLogicalDevice();
 		bool CreateAllocator();
-		bool CreateSwapChain(VkExtent2D& window_extent, int framesinflight);
 
 		bool checkvalidationLayerSupport();
 		bool CheckDeviceQueueSupport(VkPhysicalDevice device, VkSurfaceKHR surface, VkQueueFlags flags);

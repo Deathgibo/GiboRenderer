@@ -68,6 +68,8 @@ namespace Gibo {
 
 	void PipelineCache::Cleanup()
 	{
+		
+		/*  I want to be able to control pipeline memory because swap chain recreation 
 		//free every Pipeline Layout
 		for (auto layout : LayoutArray)
 		{
@@ -80,6 +82,7 @@ namespace Gibo {
 			vkDestroyPipeline(deviceref, pipeline, nullptr);
 		}
 		PipelineArray.clear();
+		*/
 	}
 
 	vkcorePipeline PipelineCache::GetGraphicsPipeline(PipelineData data, VkPhysicalDevice physicaldevice, VkRenderPass renderpass, const std::vector<VkPipelineShaderStageCreateInfo>& moduleinfo,
@@ -87,9 +90,9 @@ namespace Gibo {
 	{
 		for (auto& pushconstantsize : ranges)
 		{
-			if (pushconstantsize.size > GetDeviceLimits(physicaldevice).maxPushConstantsSize)
+			if (pushconstantsize.size > PhysicalDeviceQuery::GetDeviceLimits(physicaldevice).maxPushConstantsSize)
 			{
-				Logger::LogError("Push constant size greater than ", GetDeviceLimits(physicaldevice).maxPushConstantsSize, " bytes\n");
+				Logger::LogError("Push constant size greater than ", PhysicalDeviceQuery::GetDeviceLimits(physicaldevice).maxPushConstantsSize, " bytes\n");
 			}
 		}
 

@@ -2,6 +2,9 @@
 #include "RenderManager.h"
 #include "vkcore/VulkanHelpers.h"
 
+#include "../ThirdParty/ImGui/imgui.h"
+#include "../ThirdParty/ImGui/imgui_impl_glfw.h"
+#include "../ThirdParty/ImGui/imgui_impl_vulkan.h"
 #include "RenderObject.h"
 
 namespace Gibo {
@@ -36,11 +39,27 @@ namespace Gibo {
 
 	RenderManager::~RenderManager()
 	{
-		WindowManager.Terminate();
-		
+	
+	}
+
+	void RenderManager::ShutDownRenderer()
+	{
+		vkDeviceWaitIdle(Device.GetDevice());
+
+		atmosphere->CleanUp();
+		delete atmosphere;
+
+		CleanUpPBR();
+		CleanUpCompute();
+		CleanUpGeneral();
+		if (enable_imgui)
+		{
+			closeImGui();
+		}
+
 		meshCache->CleanUp();
 		delete meshCache;
-		
+
 		textureCache->CleanUp();
 		delete textureCache;
 
@@ -51,30 +70,466 @@ namespace Gibo {
 		delete objectmanager;
 
 		Device.DestroyDevice();
+
+		WindowManager.Terminate();
+	}
+
+	void RenderManager::CleanUpPBR()
+	{
+		PBRdeleteimagedata();
+		
+		program_pbr.CleanUp();
+
+		for (int i = 0; i < cmdbuffer_pbr.size(); i++)
+		{
+			vkFreeCommandBuffers(Device.GetDevice(), Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::GRAPHICS), 1, &cmdbuffer_pbr[i]);
+		}
+	}
+
+	void RenderManager::CleanUpCompute()
+	{
+		program_compute.CleanUp();
+
+		vkDestroyPipelineLayout(Device.GetDevice(), pipeline_compute.layout, nullptr);
+		vkDestroyPipeline(Device.GetDevice(), pipeline_compute.pipeline, nullptr);
+
+		for (int i = 0; i < cmdbuffer_compute.size(); i++)
+		{
+			vkFreeCommandBuffers(Device.GetDevice(), Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::COMPUTE), 1, &cmdbuffer_compute[i]);
+		}
+	}
+
+	void RenderManager::CleanUpGeneral()
+	{
+		for (int i = 0; i < pv_uniform.size(); i++)
+		{
+			Device.DestroyBuffer(pv_uniform[i]);
+		}
+
+		for (int i = 0; i < inFlightFences.size(); i++)
+		{
+			vkDestroyFence(Device.GetDevice(), inFlightFences[i], nullptr);
+		}
+		//swapimageFences are not actually created so don't delete them
+
+		for (int i = 0; i < semaphore_colorpass.size(); i++)
+		{
+			vkDestroySemaphore(Device.GetDevice(), semaphore_imagefetch[i], nullptr);
+			vkDestroySemaphore(Device.GetDevice(), semaphore_colorpass[i], nullptr);
+			vkDestroySemaphore(Device.GetDevice(), semaphore_computepass[i], nullptr);
+			if (enable_imgui)
+			{
+				vkDestroySemaphore(Device.GetDevice(), semaphore_imgui[i], nullptr);
+			}
+		}
+	}
+
+	void RenderManager::SetMultisampling(SAMPLE_COUNT count)
+	{
+		vkDeviceWaitIdle(Device.GetDevice());
+
+		VkPhysicalDeviceLimits limits = PhysicalDeviceQuery::GetDeviceLimits(Device.GetPhysicalDevice());
+		if (limits.framebufferColorSampleCounts < ConvertSampleCount(count) || limits.framebufferDepthSampleCounts < ConvertSampleCount(count))
+		{
+			Logger::LogWarning("physical device does not support that sample count\n");
+			return;
+		}
+
+		multisampling_count = ConvertSampleCount(count);
+
+		PBRdeleteimagedata();
+		PBRcreateimagedata();
+
+		atmosphere->SwapChainRecreate(window_extent, renderpass_pbr, multisampling_count);
+	}
+
+	void RenderManager::SetResolution(RESOLUTION res)
+	{
+		int width, height;
+		ConvertResolution(res, width, height);
+		Resolution.width = width;
+		Resolution.height = height;
+
+		Recreateswapchain();
+	}
+
+	/*
+	If you just change window size, you don't have to recreate everything, just everything relating to the size of the final image your displaying
+
+	However if you want to change resolution then you have to change everything dealing with image attachment size. This is:
+		rendertarget images and views
+		framebuffer
+		pipeline
+		command buffer
+		any data/buffers that rely on screen width and height (projection matrix buffer, atmosphere shader, etc
+	*/
+	void RenderManager::Recreateswapchain()
+	{ 
+		vkDeviceWaitIdle(Device.GetDevice());
+		
+		int width = 0;
+		int height = 0;
+		WindowManager.getwindowframebuffersize(width, height);
+
+		while (width == 0 || height == 0) {
+			WindowManager.getwindowframebuffersize(width, height);
+			glfwWaitEvents();
+		}
+
+		//make sure to recreate swapchain first to get swapchains extent
+		Device.CleanSwapChain();
+		Device.CreateSwapChain(window_extent, FRAMES_IN_FLIGHT);
+
+		PBRdeleteimagedata();
+		PBRcreateimagedata();
+
+		atmosphere->SwapChainRecreate(window_extent, renderpass_pbr, multisampling_count);
+
+		if (enable_imgui)
+		{
+			for (int i = 0; i < framebuffer_imgui.size(); i++)
+			{
+				vkDestroyFramebuffer(Device.GetDevice(), framebuffer_imgui[i], nullptr);
+			}
+			for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+			{
+				VkImageView views = { Device.GetswapchainView(i) };
+				framebuffer_imgui[i] = CreateFrameBuffer(Device.GetDevice(), window_extent.width, window_extent.height, renderpass_imgui, &views, 1);
+			}
+			ImGui_ImplVulkanH_Window info = {};
+			//ImGui_ImplVulkanH_CreateOrResizeWindow(Device.GetInstace(), Device.GetPhysicalDevice(), Device.GetDevice(), &g_MainWindowData, PhysicalDeviceQuery::GetQueueFamily(Device.GetPhysicalDevice(), VK_QUEUE_GRAPHICS_BIT),
+				//nullptr, window_extent.width, window_extent.height, FRAMES_IN_FLIGHT);
+		}
+
+		SetProjectionMatrix();
+	}
+
+	void RenderManager::PBRcreateimagedata()
+	{
+		//renderpasss
+		VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
+
+		RenderPassCache& rpcache = Device.GetRenderPassCache();
+		if (multisampling_count == VK_SAMPLE_COUNT_1_BIT)
+		{
+			RenderPassAttachment colorattachment(0, color_format, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+				VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::COLOR);
+			RenderPassAttachment depthattachment(1, findDepthFormat(Device.GetPhysicalDevice()), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+				RENDERPASSTYPE::DEPTH);
+			std::vector<RenderPassAttachment> attachments = { colorattachment, depthattachment };
+			renderpass_pbr = rpcache.GetRenderPass(attachments.data(), attachments.size(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+		}
+		else
+		{
+			RenderPassAttachment colorattachment(0, color_format, multisampling_count, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+				VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::COLOR);
+			RenderPassAttachment depthattachment(1, findDepthFormat(Device.GetPhysicalDevice()), multisampling_count, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+				VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
+				RENDERPASSTYPE::DEPTH);
+			RenderPassAttachment resolveattachment(2, color_format, VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
+				VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::RESOLVE);
+			std::vector<RenderPassAttachment> attachments = { colorattachment, depthattachment, resolveattachment };
+			renderpass_pbr = rpcache.GetRenderPass(attachments.data(), attachments.size(), VK_PIPELINE_BIND_POINT_GRAPHICS);
+		}
+
+		//image attachments
+		if (!PhysicalDeviceQuery::CheckImageOptimalFormat(Device.GetPhysicalDevice(), color_format, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT))
+		{
+			Logger::LogError("format not supported for main color attachment\n");
+		}
+		if (!PhysicalDeviceQuery::CheckImageOptimalFormat(Device.GetPhysicalDevice(), color_format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
+		{
+			Logger::LogError("storage format not supported for main color attachment\n");
+		}
+
+		color_attachment.resize(FRAMES_IN_FLIGHT);
+		color_attachmentview.resize(FRAMES_IN_FLIGHT);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+			VkImageUsageFlags color_usage = (multisampling_count == VK_SAMPLE_COUNT_1_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT : VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
+			Device.CreateImage(VK_IMAGE_TYPE_2D, color_format, color_usage, multisampling_count, window_extent.width, window_extent.height, 1, 1, 1, VMA_MEMORY_USAGE_GPU_ONLY, 0, color_attachment[i]);
+
+			color_attachmentview[i] = CreateImageView(Device.GetDevice(), color_attachment[i].image, color_format, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D);
+		}
+
+		depth_attachment.resize(FRAMES_IN_FLIGHT);
+		depth_view.resize(FRAMES_IN_FLIGHT);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+			Device.CreateImage(VK_IMAGE_TYPE_2D, findDepthFormat(Device.GetPhysicalDevice()), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, multisampling_count, window_extent.width,
+				window_extent.height, 1, 1, 1, VMA_MEMORY_USAGE_GPU_ONLY, 0, depth_attachment[i]);
+			depth_view[i] = CreateImageView(Device.GetDevice(), depth_attachment[i].image, findDepthFormat(Device.GetPhysicalDevice()), VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D);
+		}
+
+		resolve_attachment.resize(FRAMES_IN_FLIGHT);
+		resolve_attachmentview.resize(FRAMES_IN_FLIGHT);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+			Device.CreateImage(VK_IMAGE_TYPE_2D, color_format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_SAMPLE_COUNT_1_BIT, window_extent.width, window_extent.height, 1, 1, 1,
+				VMA_MEMORY_USAGE_GPU_ONLY, 0, resolve_attachment[i]);
+
+			resolve_attachmentview[i] = CreateImageView(Device.GetDevice(), resolve_attachment[i].image, color_format, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D);
+		}
+
+		//framebuffer
+		framebuffer_pbr.resize(FRAMES_IN_FLIGHT);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+			if (multisampling_count == VK_SAMPLE_COUNT_1_BIT)
+			{
+				std::vector<VkImageView> imageview = { color_attachmentview[i], depth_view[i] };
+				framebuffer_pbr[i] = CreateFrameBuffer(Device.GetDevice(), window_extent.width, window_extent.height, renderpass_pbr, imageview.data(), imageview.size());
+			}
+			else
+			{
+				std::vector<VkImageView> imageview = { color_attachmentview[i], depth_view[i], resolve_attachmentview[i] };
+				framebuffer_pbr[i] = CreateFrameBuffer(Device.GetDevice(), window_extent.width, window_extent.height, renderpass_pbr, imageview.data(), imageview.size());
+			}
+		}
+
+		//pipeline
+		PipelineCache& pipecache = Device.GetPipelineCache();
+		PipelineData pipelinedata(window_extent.width, window_extent.height);
+
+		pipelinedata.ColorBlendstate.blendenable = VK_TRUE;
+		pipelinedata.ColorBlendstate.colorblendop = VK_BLEND_OP_ADD;
+		pipelinedata.ColorBlendstate.dstblendfactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		pipelinedata.ColorBlendstate.srcblendfactor = VK_BLEND_FACTOR_SRC_ALPHA;
+		pipelinedata.ColorBlendstate.alphablendop = VK_BLEND_OP_ADD;
+		pipelinedata.ColorBlendstate.dstalphablendfactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
+		pipelinedata.ColorBlendstate.srcalphablendfactor = VK_BLEND_FACTOR_SRC_ALPHA;
+
+		pipelinedata.Rasterizationstate.cullmode = VK_CULL_MODE_NONE; // VK_CULL_MODE_BACK_BIT
+		pipelinedata.Rasterizationstate.frontface = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		pipelinedata.Rasterizationstate.polygonmode = VK_POLYGON_MODE_FILL;
+
+		pipelinedata.DepthStencilstate.depthtestenable = VK_TRUE;
+		pipelinedata.DepthStencilstate.depthcompareop = VK_COMPARE_OP_LESS;
+		pipelinedata.DepthStencilstate.depthwriteenable = VK_TRUE;
+
+		pipelinedata.Multisamplingstate.samplecount = multisampling_count;
+		pipelinedata.Multisamplingstate.sampleshadingenable = VK_TRUE;
+		pipelinedata.Multisamplingstate.minsampleshading = .5;
+
+		pipelinedata.Inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
+		std::vector<VkDescriptorSetLayout> layoutsz = { program_pbr.GetGlobalLayout(), program_pbr.GetLocalLayout() };
+
+		pipeline_pbr = pipecache.GetGraphicsPipeline(pipelinedata, Device.GetPhysicalDevice(), renderpass_pbr, program_pbr.GetShaderStageInfo(), program_pbr.GetPushRanges(), layoutsz.data(), layoutsz.size());
+	}
+
+	void RenderManager::PBRdeleteimagedata()
+	{
+		vkDestroyRenderPass(Device.GetDevice(), renderpass_pbr, nullptr);
+
+		for (int i = 0; i < color_attachment.size(); i++)
+		{
+			Device.DestroyImage(color_attachment[i]);
+			vkDestroyImageView(Device.GetDevice(), color_attachmentview[i], nullptr);
+		}
+		color_attachment.clear();
+		for (int i = 0; i < depth_attachment.size(); i++)
+		{
+			Device.DestroyImage(depth_attachment[i]);
+			vkDestroyImageView(Device.GetDevice(), depth_view[i], nullptr);
+		}
+		depth_attachment.clear();
+		for (int i = 0; i < framebuffer_pbr.size(); i++)
+		{
+			vkDestroyFramebuffer(Device.GetDevice(), framebuffer_pbr[i], nullptr);
+		}
+		for (int i = 0; i < resolve_attachment.size(); i++)
+		{
+			Device.DestroyImage(resolve_attachment[i]);
+			vkDestroyImageView(Device.GetDevice(), resolve_attachmentview[i], nullptr);
+		}
+		resolve_attachment.clear();
+
+		framebuffer_pbr.clear();
+		vkDestroyPipelineLayout(Device.GetDevice(), pipeline_pbr.layout, nullptr);
+		vkDestroyPipeline(Device.GetDevice(), pipeline_pbr.pipeline, nullptr);
+	}
+
+	void RenderManager::startImGui()
+	{
+		//descriptor pool
+		VkDescriptorPoolSize pool_sizes[] =
+		{
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+		};
+		VkDescriptorPoolCreateInfo pool_info = {};
+		pool_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+		pool_info.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+		pool_info.maxSets = 1000 * IM_ARRAYSIZE(pool_sizes);
+		pool_info.poolSizeCount = (uint32_t)IM_ARRAYSIZE(pool_sizes);
+		pool_info.pPoolSizes = pool_sizes;
+		VULKAN_CHECK(vkCreateDescriptorPool(Device.GetDevice(), &pool_info, nullptr, &imguipool), "creating imgui descriptor pool");
+
+		//renderpass
+		RenderPassAttachment attachment(0, Device.GetswapchainFormat(), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ATTACHMENT_LOAD_OP_LOAD, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::COLOR);
+		renderpass_imgui = Device.GetRenderPassCache().GetRenderPass(&attachment, 1);
+
+		//framebuffers
+		framebuffer_imgui.resize(FRAMES_IN_FLIGHT);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+			VkImageView views = { Device.GetswapchainView(i) };
+			framebuffer_imgui[i] = CreateFrameBuffer(Device.GetDevice(), window_extent.width, window_extent.height, renderpass_imgui, &views, 1);
+		}
+
+		//command buffers
+		cmdbuffer_imgui.resize(FRAMES_IN_FLIGHT);
+		VkCommandBufferAllocateInfo allocInfo = {};
+		allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
+		allocInfo.commandPool = Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::GRAPHICS);
+		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
+		allocInfo.commandBufferCount = cmdbuffer_imgui.size();
+		VULKAN_CHECK(vkAllocateCommandBuffers(Device.GetDevice(), &allocInfo, cmdbuffer_imgui.data()), "allocating imgui cmdbuffers");
+
+
+		IMGUI_CHECKVERSION();
+		ImGui::CreateContext();
+		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;     // Enable Keyboard Controls
+		//io.ConfigFlags |= ImGuiConfigFlags_NavEnableGamepad;      // Enable Gamepad Controls
+
+		// Setup Dear ImGui style
+		ImGui::StyleColorsDark();
+		ImGui::StyleColorsClassic();
+
+		//ImGui_ImplVulkan_SetMinImageCount()
+		//ImGui_ImplVulkan_SetMinImageCount(g_MinImageCount);
+		//ImGui_ImplVulkanH_CreateOrResizeWindow(g_Instance, g_PhysicalDevice, g_Device, &g_MainWindowData, g_QueueFamily, g_Allocator, width, height, g_MinImageCount);
+
+		// Setup Platform/Renderer backends
+		ImGui_ImplGlfw_InitForVulkan(WindowManager.Getwindow(), true);
+		ImGui_ImplVulkan_InitInfo init_info = {};
+		init_info.Instance = Device.GetInstace();
+		init_info.PhysicalDevice = Device.GetPhysicalDevice();
+		init_info.Device = Device.GetDevice();
+		init_info.QueueFamily = PhysicalDeviceQuery::GetQueueFamily(Device.GetPhysicalDevice(), VK_QUEUE_GRAPHICS_BIT);
+		init_info.Queue = Device.GetQueue(POOL_FAMILY::GRAPHICS);
+		init_info.PipelineCache = VK_NULL_HANDLE;
+		init_info.DescriptorPool = imguipool;
+		init_info.Allocator = nullptr;
+		init_info.MinImageCount = FRAMES_IN_FLIGHT;
+		init_info.ImageCount = FRAMES_IN_FLIGHT;
+		init_info.CheckVkResultFn = nullptr;
+		ImGui_ImplVulkan_Init(&init_info, renderpass_imgui);
+
+		VkCommandBuffer font_cmd = Device.beginSingleTimeCommands(POOL_FAMILY::GRAPHICS);
+		ImGui_ImplVulkan_CreateFontsTexture(font_cmd);
+		Device.submitSingleTimeCommands(font_cmd, POOL_FAMILY::GRAPHICS);
+	}
+
+	void RenderManager::updateImGui(int current_frame, int imageindex)
+	{
+		ImGui_ImplVulkan_NewFrame();
+		ImGui_ImplGlfw_NewFrame();
+		ImGui::NewFrame();
+
+		// 1. Show the big demo window (Most of the sample code is in ImGui::ShowDemoWindow()! You can browse its code to learn more about Dear ImGui!).
+		ImGui::ShowDemoWindow();
+
+		ImGui::Render();
+
+		vkResetCommandBuffer(cmdbuffer_imgui[current_frame], 0);
+
+		//commandbuffer
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(cmdbuffer_imgui[current_frame], &begin_info);
+		VkRenderPassBeginInfo begin_rp = {};
+		begin_rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		begin_rp.renderPass = renderpass_imgui;
+		begin_rp.framebuffer = framebuffer_imgui[imageindex];
+		begin_rp.renderArea.offset = { 0,0 };
+		begin_rp.renderArea.extent = { window_extent.width, window_extent.height };
+		std::array<VkClearValue, 1> clearValues = {};
+		clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		begin_rp.pClearValues = clearValues.data();
+		begin_rp.clearValueCount = clearValues.size();
+
+		vkCmdBeginRenderPass(cmdbuffer_imgui[current_frame], &begin_rp, VK_SUBPASS_CONTENTS_INLINE);
+
+		//draw call
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), cmdbuffer_imgui[current_frame]);
+		
+		vkCmdEndRenderPass(cmdbuffer_imgui[current_frame]);
+		vkEndCommandBuffer(cmdbuffer_imgui[current_frame]);
+	}
+
+	void RenderManager::closeImGui()
+	{
+		ImGui_ImplVulkan_Shutdown();
+		ImGui_ImplGlfw_Shutdown();
+		ImGui::DestroyContext();
+
+		vkDestroyDescriptorPool(Device.GetDevice(), imguipool, nullptr);
+		vkDestroyRenderPass(Device.GetDevice(), renderpass_imgui, nullptr);
+
+		for (int i = 0; i < framebuffer_imgui.size(); i++)
+		{
+			vkDestroyFramebuffer(Device.GetDevice(), framebuffer_imgui[i], nullptr);
+		}
+
+		for (int i = 0; i < cmdbuffer_compute.size(); i++)
+		{
+			vkFreeCommandBuffers(Device.GetDevice(), Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::GRAPHICS), 1, &cmdbuffer_imgui[i]);
+		}
 	}
 
 	bool RenderManager::InitializeRenderer()
 	{
 		bool valid = true;
-		window_extent.width = 800;
-		window_extent.height = 600;
 
 		valid = valid && WindowManager.InitializeVulkan(window_extent.width, window_extent.height, &framebuffer_size_callback, key_callback, cursor_position_callback, mouse_button_callback, scroll_callback);
 		//set the callbacks to come back to this instance of rendermanager
 		glfwSetWindowUserPointer(WindowManager.Getwindow(), reinterpret_cast<void*>(this));
 
-		valid = valid && Device.CreateDevice("GiboRenderer", WindowManager.Getwindow(), window_extent, FRAMES_IN_FLIGHT);
+		valid = valid && Device.CreateDevice("GiboRenderer", WindowManager.Getwindow(), window_extent, Resolution, FRAMES_IN_FLIGHT);
+		
+		Logger::LogInfo("Compiling Shaders-------------------\n");
+		std::system("cd Shaders && compile.bat");
+		Logger::LogInfo("Shaders Finished-------------------\n");
+		
 		meshCache = new MeshCache(Device);
 		textureCache = new TextureCache(Device);
 		lightmanager = new LightManager(Device, FRAMES_IN_FLIGHT);
 		objectmanager = new RenderObjectManager(Device, FRAMES_IN_FLIGHT);
 
-		valid = valid && InitializeVulkan();
 		CreatePBR();
 		CreateAtmosphere();
 		atmosphere->UpdateCamPosition(glm::vec4(0, 0, 0, 1));
 		createPBRfinal();
 		CreateCompute();
+
+		if (enable_imgui) 
+		{
+			startImGui();
+
+			semaphore_imgui.resize(FRAMES_IN_FLIGHT);
+			for (int i = 0; i < semaphore_imgui.size(); i++)
+			{
+				VkSemaphoreCreateInfo info = {};
+				info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+				info.flags = 0;
+				vkCreateSemaphore(Device.GetDevice(), &info, nullptr, &semaphore_imgui[i]);
+			}
+		}
 
 		//fences and semaphores
 		semaphore_imagefetch.resize(FRAMES_IN_FLIGHT);
@@ -102,48 +557,13 @@ namespace Gibo {
 		}
 		swapimageFences.resize(Device.GetSwapChainImageCount());
 
-		/*
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = 0;
-
-		vkBeginCommandBuffer(main_cmdbuffer, &begin_info);
-		VkRenderPassBeginInfo begin_rp = {};
-		begin_rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		begin_rp.renderPass = main_renderpass;
-		begin_rp.framebuffer = main_framebuffer;
-		begin_rp.renderArea.offset = { 0,0 };
-		begin_rp.renderArea.extent = { window_extent.width, window_extent.height };
-		std::array<VkClearValue, 2> clearValues = {};
-		clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-		clearValues[1].depthStencil = { 1.0f, 0 };
-		begin_rp.pClearValues = clearValues.data();
-		begin_rp.clearValueCount = 2;
-
-		vkCmdBeginRenderPass(main_cmdbuffer, &begin_rp, VK_SUBPASS_CONTENTS_INLINE);
-
-		vkCmdBindPipeline(main_cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_pipeline.pipeline);
-		vkCmdBindDescriptorSets(main_cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_pipeline.layout, 0, 1, &main_program.GetGlobalDescriptor(0), 0, nullptr);
-		vkCmdBindDescriptorSets(main_cmdbuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, main_pipeline.layout, 1, 1, &main_program.GetLocalDescriptor(coloruniformid, 0), 0, nullptr);
-		vkCmdPushConstants(main_cmdbuffer, main_pipeline.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &teapotobject->GetMatrix());
-
-		VkDeviceSize sizes[] = { 0 };
-		vkCmdBindVertexBuffers(main_cmdbuffer, 0, 1, &teapotobject->GetMesh().vbo, sizes);
-		vkCmdBindIndexBuffer(main_cmdbuffer, teapotobject->GetMesh().ibo, 0, VK_INDEX_TYPE_UINT32);
-		vkCmdDrawIndexed(main_cmdbuffer, teapotobject->GetMesh().index_size, 1, 0, 0, 0);
-
-		atmosphere->Draw(main_cmdbuffer, );
-
-		vkCmdEndRenderPass(main_cmdbuffer);
-		vkEndCommandBuffer(main_cmdbuffer);
-		*/
 		return valid;
 	}
 
 	void RenderManager::CreateAtmosphere()
 	{
-		atmosphere = new Atmosphere(Device, textureCache->Get2DTexture("Images/missingtexture.png", 0));
-		atmosphere->Create(window_extent, renderpass_pbr, *meshCache, FRAMES_IN_FLIGHT, pv_uniform);
+		atmosphere = new Atmosphere(Device, textureCache->Get2DTexture("Images/missingtexture.png", 0), FRAMES_IN_FLIGHT);
+		atmosphere->Create(window_extent, renderpass_pbr, *meshCache, FRAMES_IN_FLIGHT, pv_uniform, multisampling_count);
 		atmosphere->FillLUT();
 	}
 
@@ -168,23 +588,6 @@ namespace Gibo {
 
 		pipeline_compute = Device.GetPipelineCache().GetComputePipeline(program_compute.GetShaderStageInfo()[0], &program_compute.GetGlobalLayout(), 1);
 
-
-		//descriptors
-		//*theres no garuntee what swapchain image is getting used so you have to rebind descriptor data and redo command buffer every frame which is quick anyways.
-		DescriptorHelper global_descriptors(FRAMES_IN_FLIGHT);
-
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			//color attachment from our main shader
-			global_descriptors.imageviews[i].push_back(color_attachmentview[i]);
-			global_descriptors.samplers[i].push_back(atmosphere->GetSampler());
-
-			//swapchain image
-			global_descriptors.imageviews[i].push_back(Device.GetswapchainView(i));
-			global_descriptors.samplers[i].push_back(atmosphere->GetSampler());
-		}
-		program_compute.SetGlobalDescriptor(global_descriptors.uniformbuffers, global_descriptors.buffersizes, global_descriptors.imageviews, global_descriptors.samplers, global_descriptors.bufferviews);
-	
 		//create cmdbuffers
 		cmdbuffer_compute.resize(FRAMES_IN_FLIGHT);
 
@@ -194,33 +597,13 @@ namespace Gibo {
 		allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
 		allocInfo.commandBufferCount = cmdbuffer_compute.size();
 		VULKAN_CHECK(vkAllocateCommandBuffers(Device.GetDevice(), &allocInfo, cmdbuffer_compute.data()), "allocating compute cmdbuffers");
-		
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			VkCommandBufferBeginInfo beginInfo{};
-			beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-			beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-			VULKAN_CHECK(vkBeginCommandBuffer(cmdbuffer_compute[i], &beginInfo), "begin post proccess cmdbuffer");
-
-			TransitionImageLayout(Device, Device.GetswapchainImage(current_frame_in_flight), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_HOST_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
-				VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT, cmdbuffer_compute[i]);
-
-			float WORKGROUP_SIZE = 1.0;
-			vkCmdBindPipeline(cmdbuffer_compute[i], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_compute.pipeline);
-			vkCmdBindDescriptorSets(cmdbuffer_compute[i], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_compute.layout, 0, 1, &program_compute.GetGlobalDescriptor(current_frame_in_flight), 0, nullptr);
-			vkCmdDispatch(cmdbuffer_compute[i], window_extent.width / WORKGROUP_SIZE, window_extent.height / WORKGROUP_SIZE, 1);
-
-			TransitionImageLayout(Device, Device.GetswapchainImage(current_frame_in_flight), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
-				VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT, cmdbuffer_compute[i]);
-			VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_compute[i]), "end cmdbuffer");
-		}
 	}
 
-	void RenderManager::ReSubmitComputeCmd(int current_frame, int current_imageindex)
+	void RenderManager::RecordComputeCmd(int current_frame, int current_imageindex)
 	{
 		//we have to set the current_frames global descriptorset to point to the specific swapchain image we have this frame in flight. 
 		DescriptorHelper global_descriptors(1);
-		global_descriptors.imageviews[0].push_back(color_attachmentview[current_frame]);
+		global_descriptors.imageviews[0].push_back((multisampling_count == VK_SAMPLE_COUNT_1_BIT) ? color_attachmentview[current_frame] : resolve_attachmentview[current_frame]);
 		global_descriptors.samplers[0].push_back(atmosphere->GetSampler());
 		global_descriptors.imageviews[0].push_back(Device.GetswapchainView(current_imageindex));
 		global_descriptors.samplers[0].push_back(atmosphere->GetSampler());
@@ -237,104 +620,32 @@ namespace Gibo {
 		TransitionImageLayout(Device, Device.GetswapchainImage(current_imageindex), VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, VK_ACCESS_HOST_READ_BIT, VK_ACCESS_SHADER_WRITE_BIT,
 			VK_PIPELINE_STAGE_HOST_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT, cmdbuffer_compute[current_frame]);
 
-		float WORKGROUP_SIZE = 1.0;
+		float WORKGROUP_SIZE = 32.0;
 		vkCmdBindPipeline(cmdbuffer_compute[current_frame], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_compute.pipeline);
 		vkCmdBindDescriptorSets(cmdbuffer_compute[current_frame], VK_PIPELINE_BIND_POINT_COMPUTE, pipeline_compute.layout, 0, 1, &program_compute.GetGlobalDescriptor(current_frame), 0, nullptr);
 		vkCmdDispatch(cmdbuffer_compute[current_frame], window_extent.width / WORKGROUP_SIZE, window_extent.height / WORKGROUP_SIZE, 1);
 
-		TransitionImageLayout(Device, Device.GetswapchainImage(current_imageindex), VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT,
-			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT, cmdbuffer_compute[current_frame]);
+		//IMGUI - if imgui is one we need to transition it from general to colorattachment, else put it to present
+		VkImageLayout transition_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		if (enable_imgui)
+		{
+			transition_layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		}
+
+		TransitionImageLayout(Device, Device.GetswapchainImage(current_imageindex), VK_IMAGE_LAYOUT_GENERAL, transition_layout, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_MEMORY_READ_BIT | VK_ACCESS_SHADER_READ_BIT,
+			VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 1, 1, VK_IMAGE_ASPECT_COLOR_BIT, cmdbuffer_compute[current_frame]);
 		VULKAN_CHECK(vkEndCommandBuffer(cmdbuffer_compute[current_frame]), "end cmdbuffer");
 	}
 
 	void RenderManager::CreatePBR()
 	{
 		//pv buffer
-		float widthf = window_extent.width;
-		float heightf = window_extent.height;
-		glm::mat4 p_matrix = glm::perspective(glm::radians(45.0f), (widthf / heightf), 0.01f, 1000.0f);
-		glm::mat4 v_matrix = glm::lookAt(glm::vec3(0, 0, 3), glm::vec3(0, 0, 3) + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
-		std::vector<glm::mat4> pv_matrix = { v_matrix, p_matrix };
-
+		SetProjectionMatrix();
+		SetCameraMatrix();
 		pv_uniform.resize(FRAMES_IN_FLIGHT);
 		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
 		{
 			Device.CreateBuffer(sizeof(glm::mat4) * 2, VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, 0, pv_uniform[i]);
-			Device.BindData(pv_uniform[i].allocation, pv_matrix.data(), sizeof(glm::mat4) * 2);
-		}
-
-		//objects
-		meshCache->LoadMeshFromFile("Models/uvsphere.obj");
-		meshCache->LoadMeshFromFile("Models/teapot.fbx");
-		teapotobjectpbr = new RenderObject(&Device, textureCache->Get2DTexture("Images/missingtexture.png", 0));
-		teapotobjectpbr->SetMesh(meshCache->GetMesh("Models/uvsphere.obj"));
-		teapotobjectpbr->SetTexture(textureCache->Get2DTexture("Images/uvmap2.png", true));
-		teapotobjectpbr->GetMaterial().SetRoughness(1.0f);
-		teapotobjectpbr->GetMaterial().SetAlbedo(glm::vec4(1.00, 0.71, 0.29, 1));
-		teapotobjectpbr->GetMaterial().SetNormalMap(textureCache->Get2DTexture("Images/HexNormal.png", 0));
-		teapotobjectpbr->SetTransformation(glm::vec3(2, 0, -3), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
-
-		spherepbr = new RenderObject(&Device, textureCache->Get2DTexture("Images/missingtexture.png", 0));
-		spherepbr->SetMesh(meshCache->GetMesh("Models/teapot.fbx"));
-		spherepbr->SetTexture(textureCache->Get2DTexture("Images/Rocks.png", true));
-		spherepbr->GetMaterial().SetNormalMap(textureCache->Get2DTexture("Images/RocksHeight.png", 0));
-		spherepbr->SetTransformation(glm::vec3(-2, 0, -3), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
-
-		objectmanager->AddRenderObject(teapotobjectpbr, RenderObjectManager::BIN_TYPE::REGULAR);
-		objectmanager->AddRenderObject(spherepbr, RenderObjectManager::BIN_TYPE::REGULAR);
-
-		//lights
-		light1.setColor(glm::vec4(.4, .4f, 0.7f, 1)).setFallOff(10).setDirection(glm::vec4(0,0,-1,1)).setIntensity(100).setPosition(glm::vec4(0, 5, 0, 1)).setType(Light::light_type::POINT);
-		lightmanager->AddLight(light1);
-		//lightmanager->Update(0);
-		//lightmanager->RemoveLight(light1);
-
-		//renderpasss
-		RenderPassCache& rpcache = Device.GetRenderPassCache();
-		RenderPassAttachment colorattachment(0, Device.GetswapchainFormat(), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_GENERAL,
-			VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE, RENDERPASSTYPE::COLOR);
-		RenderPassAttachment depthattachment(1, findDepthFormat(Device.GetPhysicalDevice()), VK_SAMPLE_COUNT_1_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-			VK_IMAGE_LAYOUT_DEPTH_STENCIL_READ_ONLY_OPTIMAL, VK_ATTACHMENT_LOAD_OP_CLEAR, VK_ATTACHMENT_STORE_OP_STORE, VK_ATTACHMENT_LOAD_OP_DONT_CARE, VK_ATTACHMENT_STORE_OP_DONT_CARE,
-			RENDERPASSTYPE::DEPTH);
-		std::vector<RenderPassAttachment> attachments = { colorattachment, depthattachment };
-		renderpass_pbr = rpcache.GetRenderPass(attachments.data(), attachments.size(), VK_PIPELINE_BIND_POINT_GRAPHICS);
-
-		//image attachments
-		VkFormat color_format = VK_FORMAT_R16G16B16A16_SFLOAT;
-		if (!CheckImageOptimalFormat(Device.GetPhysicalDevice(), color_format, VK_FORMAT_FEATURE_COLOR_ATTACHMENT_BIT))
-		{
-			Logger::LogError("format not supported for main color attachment\n");
-		}
-		if (!CheckImageOptimalFormat(Device.GetPhysicalDevice(), color_format, VK_FORMAT_FEATURE_STORAGE_IMAGE_BIT))
-		{
-			Logger::LogError("storage format not supported for main color attachment\n");
-		}
-		
-		color_attachment.resize(FRAMES_IN_FLIGHT);
-		color_attachmentview.resize(FRAMES_IN_FLIGHT);
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			Device.CreateImage(VK_IMAGE_TYPE_2D, color_format, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT, VK_SAMPLE_COUNT_1_BIT, window_extent.width, window_extent.height, 1, 1, 1,
-				VMA_MEMORY_USAGE_GPU_ONLY, 0, color_attachment[i]);
-
-			color_attachmentview[i] = CreateImageView(Device.GetDevice(), color_attachment[i].image, color_format, VK_IMAGE_ASPECT_COLOR_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D);
-		}
-
-		depth_attachment.resize(FRAMES_IN_FLIGHT);
-		depth_view.resize(FRAMES_IN_FLIGHT);
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			Device.CreateImage(VK_IMAGE_TYPE_2D, findDepthFormat(Device.GetPhysicalDevice()), VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_SAMPLE_COUNT_1_BIT, window_extent.width,
-				window_extent.height, 1, 1, 1, VMA_MEMORY_USAGE_GPU_ONLY, 0, depth_attachment[i]);
-			depth_view[i] = CreateImageView(Device.GetDevice(), depth_attachment[i].image, findDepthFormat(Device.GetPhysicalDevice()), VK_IMAGE_ASPECT_DEPTH_BIT, 1, 1, VK_IMAGE_VIEW_TYPE_2D);
-		}
-		
-		//framebuffer
-		framebuffer_pbr.resize(FRAMES_IN_FLIGHT);
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			std::vector<VkImageView> imageview = { color_attachmentview[i], depth_view[i] };
-			framebuffer_pbr[i] = CreateFrameBuffer(Device.GetDevice(), window_extent.width, window_extent.height, renderpass_pbr, imageview.data(), imageview.size());
 		}
 
 		//shader program/ uniform buffer
@@ -361,43 +672,29 @@ namespace Gibo {
 			{VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4)}
 		};
 
-		if (!program_pbr.Create(Device.GetDevice(), FRAMES_IN_FLIGHT, info1.data(), info1.size(), globalinfo1.data(), globalinfo1.size(), localinfo1.data(), localinfo1.size(), pushconstants1.data(), pushconstants1.size(), 50))
+		if (!program_pbr.Create(Device.GetDevice(), FRAMES_IN_FLIGHT, info1.data(), info1.size(), globalinfo1.data(), globalinfo1.size(), localinfo1.data(), localinfo1.size(), 
+			 pushconstants1.data(), pushconstants1.size(), 150))
 		{
 			Logger::LogError("failed to create pbr shaderprogram\n");
 		}
-		
-		//pipeline
-		PipelineCache& pipecache = Device.GetPipelineCache();
-		PipelineData pipelinedata(window_extent.width, window_extent.height);
-		
-		pipelinedata.ColorBlendstate.blendenable = VK_FALSE;
-		pipelinedata.ColorBlendstate.colorblendop = VK_BLEND_OP_ADD;
-		pipelinedata.ColorBlendstate.dstblendfactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		pipelinedata.ColorBlendstate.srcblendfactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		pipelinedata.ColorBlendstate.alphablendop = VK_BLEND_OP_ADD;
-		pipelinedata.ColorBlendstate.dstalphablendfactor = VK_BLEND_FACTOR_ONE_MINUS_SRC_ALPHA;
-		pipelinedata.ColorBlendstate.srcalphablendfactor = VK_BLEND_FACTOR_SRC_ALPHA;
-		
-		pipelinedata.Rasterizationstate.cullmode = VK_CULL_MODE_NONE; // VK_CULL_MODE_BACK_BIT
-		pipelinedata.Rasterizationstate.frontface = VK_FRONT_FACE_COUNTER_CLOCKWISE;
-		pipelinedata.Rasterizationstate.polygonmode = VK_POLYGON_MODE_FILL;
-
-		pipelinedata.DepthStencilstate.depthtestenable = VK_TRUE;
-		pipelinedata.DepthStencilstate.depthcompareop = VK_COMPARE_OP_LESS;
-		pipelinedata.DepthStencilstate.depthwriteenable = VK_TRUE;
-
-		pipelinedata.Multisamplingstate.samplecount = VK_SAMPLE_COUNT_1_BIT;
-		pipelinedata.Inputassembly.topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;
-		std::vector<VkDescriptorSetLayout> layoutsz = { program_pbr.GetGlobalLayout(), program_pbr.GetLocalLayout() };
-
-		pipeline_pbr = pipecache.GetGraphicsPipeline(pipelinedata, Device.GetPhysicalDevice(), renderpass_pbr, program_pbr.GetShaderStageInfo(), program_pbr.GetPushRanges(), layoutsz.data(), layoutsz.size());
 	
-		//image and views, framebuffer, shader, deallocatecommandbuffer
+
+		PBRcreateimagedata();
+	}
+
+	void RenderManager::SetProjectionMatrix()
+	{
+		proj_matrix = glm::perspective(glm::radians(FOV), ((float)window_extent.width / (float)window_extent.height), near_plane, far_plane);
+	}
+
+	void RenderManager::SetCameraMatrix()
+	{
+		cam_matrix = glm::lookAt(glm::vec3(0, 0, 3), glm::vec3(0, 0, 3) + glm::vec3(0, 0, -1), glm::vec3(0, 1, 0));
 	}
 
 	void RenderManager::createPBRfinal()
 	{
-		//descriptors global and local
+		//descriptors global
 		DescriptorHelper global_descriptors(FRAMES_IN_FLIGHT);
 		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
 		{
@@ -420,109 +717,163 @@ namespace Gibo {
 			global_descriptors.samplers[i].push_back(atmosphere->GetSampler());
 		}
 		program_pbr.SetGlobalDescriptor(global_descriptors.uniformbuffers, global_descriptors.buffersizes, global_descriptors.imageviews, global_descriptors.samplers, global_descriptors.bufferviews);
-
-
-		uint32_t teapotid, sphereid;
-		for (int j = 0; j < objectmanager->GetVector().size(); j++)
-		{
-			DescriptorHelper local_descriptors(FRAMES_IN_FLIGHT);
-			for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-			{
-
-				local_descriptors.buffersizes[i].push_back(sizeof(Material::materialinfo));
-				local_descriptors.uniformbuffers[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetBuffer());
-
-				local_descriptors.imageviews[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetAlbedoMap().view);
-				local_descriptors.samplers[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetAlbedoMap().sampler);
-
-				local_descriptors.imageviews[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetSpecularMap().view);
-				local_descriptors.samplers[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetSpecularMap().sampler);
-
-				local_descriptors.imageviews[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetMetalMap().view);
-				local_descriptors.samplers[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetMetalMap().sampler);
-
-				local_descriptors.imageviews[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetNormalMap().view);
-				local_descriptors.samplers[i].push_back(objectmanager->GetVector()[j]->GetMaterial().GetNormalMap().sampler);
-
-			}
-
-			program_pbr.AddLocalDescriptor((j == 0) ? teapotid : sphereid, local_descriptors.uniformbuffers, local_descriptors.buffersizes, local_descriptors.imageviews, local_descriptors.samplers, local_descriptors.bufferviews);
-		}
 		
 		//commandbuffer
 		cmdbuffer_pbr.resize(FRAMES_IN_FLIGHT);
 		VkCommandBufferAllocateInfo cmd_info = {};
 		cmd_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 		cmd_info.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-		cmd_info.commandPool = Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::STATIC, POOL_FAMILY::GRAPHICS);
+		cmd_info.commandPool = Device.GetCommandPoolCache().GetCommandPool(POOL_TYPE::DYNAMIC, POOL_FAMILY::GRAPHICS);
 		cmd_info.commandBufferCount = cmdbuffer_pbr.size();
 		vkAllocateCommandBuffers(Device.GetDevice(), &cmd_info, cmdbuffer_pbr.data());
-
-		VkCommandBufferBeginInfo begin_info = {};
-		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		begin_info.flags = 0;// VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
-		{
-			vkBeginCommandBuffer(cmdbuffer_pbr[i], &begin_info);
-			VkRenderPassBeginInfo begin_rp = {};
-			begin_rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-			begin_rp.renderPass = renderpass_pbr;
-			begin_rp.framebuffer = framebuffer_pbr[i];
-			begin_rp.renderArea.offset = { 0,0 };
-			begin_rp.renderArea.extent = { window_extent.width, window_extent.height };
-			std::array<VkClearValue, 2> clearValues = {};
-			clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
-			clearValues[1].depthStencil = { 1.0f, 0 };
-			begin_rp.pClearValues = clearValues.data();
-			begin_rp.clearValueCount = 2;
-
-			vkCmdBeginRenderPass(cmdbuffer_pbr[i], &begin_rp, VK_SUBPASS_CONTENTS_INLINE);
-
-			vkCmdBindPipeline(cmdbuffer_pbr[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.pipeline);
-
-			vkCmdBindDescriptorSets(cmdbuffer_pbr[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 0, 1, &program_pbr.GetGlobalDescriptor(i), 0, nullptr);
-			
-			//per object descriptor/pushconstant/drawcall
-			for (int j = 0; j < objectmanager->GetVector().size(); j++)
-			{
-				//objectmanager->GetVector()[j]
-				vkCmdBindDescriptorSets(cmdbuffer_pbr[i], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 1, 1, &program_pbr.GetLocalDescriptor((j == 0) ? teapotid : sphereid, i), 0, nullptr);
-				vkCmdPushConstants(cmdbuffer_pbr[i], pipeline_pbr.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &objectmanager->GetVector()[j]->GetMatrix());
-
-				VkDeviceSize sizes[] = { 0 };
-				vkCmdBindVertexBuffers(cmdbuffer_pbr[i], 0, 1, &objectmanager->GetVector()[j]->GetMesh().vbo, sizes);
-				vkCmdBindIndexBuffer(cmdbuffer_pbr[i], objectmanager->GetVector()[j]->GetMesh().ibo, 0, VK_INDEX_TYPE_UINT32);
-				vkCmdDrawIndexed(cmdbuffer_pbr[i], objectmanager->GetVector()[j]->GetMesh().index_size, 1, 0, 0, 0);
-			}
-
-
-			atmosphere->Draw(cmdbuffer_pbr[i], i);
-
-			vkCmdEndRenderPass(cmdbuffer_pbr[i]);
-			vkEndCommandBuffer(cmdbuffer_pbr[i]);
-		}
-		//vkResetCommandBuffer(cmdbuffer_pbr, 0);
-		//vkFreeCommandBuffers();	
 	}
 
-	bool RenderManager::InitializeVulkan()
+	void RenderManager::RecordPBRCmd(int current_frame)
 	{
-		return true;
+		vkResetCommandBuffer(cmdbuffer_pbr[current_frame], 0);
+
+		//commandbuffer
+		VkCommandBufferBeginInfo begin_info = {};
+		begin_info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+		begin_info.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+		vkBeginCommandBuffer(cmdbuffer_pbr[current_frame], &begin_info);
+		VkRenderPassBeginInfo begin_rp = {};
+		begin_rp.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+		begin_rp.renderPass = renderpass_pbr;
+		begin_rp.framebuffer = framebuffer_pbr[current_frame];
+		begin_rp.renderArea.offset = { 0,0 };
+		begin_rp.renderArea.extent = { window_extent.width, window_extent.height };
+		std::array<VkClearValue, 3> clearValues = {};
+		clearValues[0].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		clearValues[1].depthStencil = { 1.0f, 0 };
+		clearValues[2].color = { 0.0f, 0.0f, 0.0f, 1.0f };
+		begin_rp.pClearValues = clearValues.data();
+		begin_rp.clearValueCount = clearValues.size();
+
+		vkCmdBeginRenderPass(cmdbuffer_pbr[current_frame], &begin_rp, VK_SUBPASS_CONTENTS_INLINE);
+
+		vkCmdBindPipeline(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.pipeline);
+		vkCmdBindDescriptorSets(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 0, 1, &program_pbr.GetGlobalDescriptor(current_frame), 0, nullptr);
+
+		//render all opaque objects first
+		auto bin = objectmanager->GetBin()[RenderObjectManager::BIN_TYPE::REGULAR];
+		for (int j = 0; j < bin.size(); j++)
+		{
+			vkCmdBindDescriptorSets(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 1, 1, &program_pbr.GetLocalDescriptor(bin[j]->GetId(), current_frame), 0, nullptr);
+			vkCmdPushConstants(cmdbuffer_pbr[current_frame], pipeline_pbr.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &bin[j]->GetMatrix(current_frame));
+
+			VkDeviceSize sizes[] = { 0 };
+			vkCmdBindVertexBuffers(cmdbuffer_pbr[current_frame], 0, 1, &bin[j]->GetMesh().vbo, sizes);
+			vkCmdBindIndexBuffer(cmdbuffer_pbr[current_frame], bin[j]->GetMesh().ibo, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(cmdbuffer_pbr[current_frame], bin[j]->GetMesh().index_size, 1, 0, 0, 0);
+		}
+
+		atmosphere->Draw(cmdbuffer_pbr[current_frame], current_frame);
+
+		vkCmdBindPipeline(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.pipeline);
+		vkCmdBindDescriptorSets(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 0, 1, &program_pbr.GetGlobalDescriptor(current_frame), 0, nullptr);
+
+		//render all blendable objects back to front
+		bin = objectmanager->GetBin()[RenderObjectManager::BIN_TYPE::BLENDABLE];
+		for (int j = 0; j < bin.size(); j++)
+		{
+			vkCmdBindDescriptorSets(cmdbuffer_pbr[current_frame], VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline_pbr.layout, 1, 1, &program_pbr.GetLocalDescriptor(bin[j]->GetId(), current_frame), 0, nullptr);
+			vkCmdPushConstants(cmdbuffer_pbr[current_frame], pipeline_pbr.layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &bin[j]->GetMatrix(current_frame));
+
+			VkDeviceSize sizes[] = { 0 };
+			vkCmdBindVertexBuffers(cmdbuffer_pbr[current_frame], 0, 1, &bin[j]->GetMesh().vbo, sizes);
+			vkCmdBindIndexBuffer(cmdbuffer_pbr[current_frame], bin[j]->GetMesh().ibo, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdDrawIndexed(cmdbuffer_pbr[current_frame], bin[j]->GetMesh().index_size, 1, 0, 0, 0);
+		}
+
+		vkCmdEndRenderPass(cmdbuffer_pbr[current_frame]);
+		vkEndCommandBuffer(cmdbuffer_pbr[current_frame]);
+	}
+
+	//we want it so that if a is closer to screen it is true, if be is closerorequal to screen it is false
+	bool blendsort(RenderObject* a, RenderObject* b, glm::mat4 cam_matrix)
+	{
+		//convert center of every object from model space to camera space then compare z value
+		glm::mat4 camera_matrix = cam_matrix;// = vkcoreShaderDescriptors::GetInstance()->GetMatrix().view;
+		glm::vec4 pos(0, 0, 0, 1);
+		glm::mat4 amatrix = a->GetSyncedMatrix();
+		glm::mat4 bmatrix = b->GetSyncedMatrix();
+		glm::vec4 apos = camera_matrix * amatrix * pos;
+		glm::vec4 bpos = camera_matrix * bmatrix * pos;
+		//compare z
+		if (apos.z > bpos.z)
+		{
+			return true;
+		}
+
+		return false;
+	}
+
+	void RenderManager::SortBlendedObjects()
+	{
+		//sort blendable objects front to back. vector size will never be that big (<100) and they will be mostly sorted so an insertion sort it perfect.
+		auto& bin = objectmanager->GetBin()[RenderObjectManager::BIN_TYPE::BLENDABLE];
+		int n = bin.size();
+		int i, j;
+		RenderObject* key;
+		for (i = 1; i < n; i++)
+		{
+			key = bin[i];
+			j = i - 1;
+
+			/* Move elements of arr[0..i-1], that are
+			greater than key, to one position ahead
+			of their current position */
+			while (j >= 0 && blendsort(bin[j], key, cam_matrix))
+			{
+				bin[j + 1] = bin[j];
+				j = j - 1;
+			}
+			bin[j + 1] = key;
+		}
 	}
 
 	void RenderManager::Render()
 	{
+		//CPU_ONLY: update cpu only data that has no gpu dependencies or if we add an extra frame so it doesn't matter
+		objectmanager->Update(); //gpu dependency deleting renderobject but added extra frame
+		UpdateDescriptorGraveYard(); //gpu dependency deleting descriptor set but added extra frame
+
+		SortBlendedObjects(); //cpu only memory just rearring data structure
+
 		//wait for resource key. we have a resource for every frame in flight.
 		vkWaitForFences(Device.GetDevice(), 1, &inFlightFences[current_frame_in_flight], VK_TRUE, UINT32_MAX);
 
 		//fetch image index were going to use. semaphore tells us when we actually acquired it
 		uint32_t imageIndex;
-		vkAcquireNextImageKHR(Device.GetDevice(), Device.GetSwapChain(), UINT64_MAX, semaphore_imagefetch[current_frame_in_flight], VK_NULL_HANDLE, &imageIndex);
+		VULKAN_CHECK(vkAcquireNextImageKHR(Device.GetDevice(), Device.GetSwapChain(), UINT64_MAX, semaphore_imagefetch[current_frame_in_flight], VK_NULL_HANDLE, &imageIndex), "acquiring swapchain image");
+		//if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+			//recreateSwapChain();
+		//}
 
-		//update cpu data here and recreate commandbuffers
-		ReSubmitComputeCmd(current_frame_in_flight, imageIndex);
+		//GPU_DEPENDENT: gpu data can now be updated because we have the resource key
+		if (enable_imgui)
+		{
+			updateImGui(current_frame_in_flight, imageIndex);
+		}
 
+		for (int i = 0; i < objectmanager->GetVector().size(); i++) //gpu dependency/ updating model matrix data
+		{
+			objectmanager->GetVector()[i]->Update(current_frame_in_flight);
+		}
+
+		//proj/view matrix gpu dependency
+		std::vector<glm::mat4> pv_matrix = { cam_matrix, proj_matrix };
+		Device.BindData(pv_uniform[current_frame_in_flight].allocation, pv_matrix.data(), sizeof(glm::mat4) * 2);
+
+		//we have resource key so here is where we update gpu dependencies for current frame
+		lightmanager->Update(current_frame_in_flight); //gpu dependency, its changing current frames light buffer
+		atmosphere->Update(current_frame_in_flight); //gpu dependency, its changing current frames shaderinfo buffer
+
+		//resubmit commandbuffers that need to be updated every frame
+		RecordPBRCmd(current_frame_in_flight);
+		RecordComputeCmd(current_frame_in_flight, imageIndex);
 
 		//wait for image key. the image could be in use now if we have more frames in flight than swapchain images. Also we have to assume we can't start the pipeline
 		//until we have the image key though we only need it for compute stage, but were free to write to cpu data.
@@ -550,7 +901,6 @@ namespace Gibo {
 		submit_info.pSignalSemaphores = &semaphore_colorpass[current_frame_in_flight];
 		
 		vkQueueSubmit(Device.GetQueue(POOL_FAMILY::GRAPHICS), 1, &submit_info, VK_NULL_HANDLE);
-		//vkQueueWaitIdle(Device.GetQueue(POOL_FAMILY::GRAPHICS));
 
 		//submit Post-Process pass
 		VkSubmitInfo submit_info_compute = {};
@@ -566,8 +916,31 @@ namespace Gibo {
 		submit_info_compute.signalSemaphoreCount = 1;
 		submit_info_compute.pSignalSemaphores = &semaphore_computepass[current_frame_in_flight];
 
-		vkQueueSubmit(Device.GetQueue(POOL_FAMILY::COMPUTE), 1, &submit_info_compute, inFlightFences[current_frame_in_flight]);
-		//vkQueueWaitIdle(Device.GetQueue(POOL_FAMILY::COMPUTE));
+		VkFence submit_fence = inFlightFences[current_frame_in_flight];
+		if (enable_imgui)
+		{
+			submit_fence = VK_NULL_HANDLE;
+		}
+		vkQueueSubmit(Device.GetQueue(POOL_FAMILY::COMPUTE), 1, &submit_info_compute, submit_fence);
+
+		if (enable_imgui)
+		{
+			//submit imgui pass
+			VkSubmitInfo submit_info_imgui = {};
+			submit_info_imgui.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+			submit_info_imgui.commandBufferCount = 1;
+			submit_info_imgui.pCommandBuffers = &cmdbuffer_imgui[current_frame_in_flight];
+
+			VkPipelineStageFlags stages_imgui[] = { VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT };
+			submit_info_imgui.pWaitDstStageMask = stages_imgui;
+			submit_info_imgui.waitSemaphoreCount = 1;
+			submit_info_imgui.pWaitSemaphores = &semaphore_computepass[current_frame_in_flight];
+
+			submit_info_imgui.signalSemaphoreCount = 1;
+			submit_info_imgui.pSignalSemaphores = &semaphore_imgui[current_frame_in_flight];
+
+			vkQueueSubmit(Device.GetQueue(POOL_FAMILY::COMPUTE), 1, &submit_info_imgui, inFlightFences[current_frame_in_flight]);
+		}
 
 		//submit presentation
 		VkPresentInfoKHR presentInfo = {};
@@ -578,10 +951,15 @@ namespace Gibo {
 		presentInfo.pImageIndices = &imageIndex;
 		
 		presentInfo.waitSemaphoreCount = 1;
-		presentInfo.pWaitSemaphores = &semaphore_computepass[current_frame_in_flight];
+		VkSemaphore sem = semaphore_computepass[current_frame_in_flight];
+		if (enable_imgui)
+		{
+			sem = semaphore_imgui[current_frame_in_flight];
+		}
+		presentInfo.pWaitSemaphores = &sem;
 
 		vkQueuePresentKHR(Device.GetQueue(POOL_FAMILY::PRESENT), &presentInfo);
-		//vkQueueWaitIdle(Device.GetQueue(POOL_FAMILY::PRESENT));
+
 
 		current_frame_in_flight = (current_frame_in_flight + 1) % FRAMES_IN_FLIGHT;
 	}
@@ -590,10 +968,6 @@ namespace Gibo {
 	{
 		glfwPollEvents();
 		
-		lightmanager->Update(current_frame_in_flight);
-		atmosphere->Update(current_frame_in_flight);
-		objectmanager->Update();
-
 		Render();
 	}
 
@@ -607,4 +981,74 @@ namespace Gibo {
 		WindowManager.SetWindowTitle(title);
 	}
 
+	void RenderManager::AddRenderObject(RenderObject* object, RenderObjectManager::BIN_TYPE type)
+	{
+		//first make sure to add it to objectmanager. This sets the objects id, and pushes it to all data-structures
+		objectmanager->AddRenderObject(object, type);
+
+		//now add local descriptor set for every shader that needs this object
+	
+		//PBR
+		DescriptorHelper local_descriptors(FRAMES_IN_FLIGHT, 1, 4);
+		for (int i = 0; i < FRAMES_IN_FLIGHT; i++)
+		{
+
+			local_descriptors.buffersizes[i].emplace_back(sizeof(Material::materialinfo));
+			local_descriptors.uniformbuffers[i].emplace_back(object->GetMaterial().GetBuffer());
+
+			local_descriptors.imageviews[i].emplace_back(object->GetMaterial().GetAlbedoMap().view);
+			local_descriptors.samplers[i].emplace_back(object->GetMaterial().GetAlbedoMap().sampler);
+
+			local_descriptors.imageviews[i].emplace_back(object->GetMaterial().GetSpecularMap().view);
+			local_descriptors.samplers[i].emplace_back(object->GetMaterial().GetSpecularMap().sampler);
+
+			local_descriptors.imageviews[i].emplace_back(object->GetMaterial().GetMetalMap().view);
+			local_descriptors.samplers[i].emplace_back(object->GetMaterial().GetMetalMap().sampler);
+
+			local_descriptors.imageviews[i].emplace_back(object->GetMaterial().GetNormalMap().view);
+			local_descriptors.samplers[i].emplace_back(object->GetMaterial().GetNormalMap().sampler);
+
+		}
+		program_pbr.AddLocalDescriptor(object->GetId(), local_descriptors.uniformbuffers, local_descriptors.buffersizes, local_descriptors.imageviews, local_descriptors.samplers, local_descriptors.bufferviews);
+
+		//
+	}
+
+	/*
+		Some notes on this - obviously when we delete objects we have to handle frames in flight. Pretty much its not that hard as long as everything
+		that has to deal with renderobjects follows same rules:
+		Make sure none of the future frames reference anything related to this object like descriptors/memory/etc
+		Make sure we don't remove any memory being used in the frames using it
+		after x amount of frames have passed make sure to just remove the memory and order shouldn't matter because it shouldn't be used by anything
+	*/
+	void RenderManager::RemoveRenderObject(RenderObject* object, RenderObjectManager::BIN_TYPE type)
+	{
+		objectmanager->RemoveRenderObject(object, type);
+
+		//add objects id to the descriptorgraveyard.
+		descriptorgraveyard.push_back(descriptorgraveinfo(object->GetId(), 0));
+	}
+
+	//wait for frame key before calling 
+	void RenderManager::UpdateDescriptorGraveYard()
+	{
+		//we assume every object goes to every one of these shaders for now.
+		for (int i = 0; i < descriptorgraveyard.size(); i++)
+		{
+			descriptorgraveyard[i].frame_count++;
+
+			if (descriptorgraveyard[i].frame_count > FRAMES_IN_FLIGHT)
+			{
+				//remove descriptor set for all frames for this renderobject because all use of the resources are done and the renderobject is being destroyed this frame as well
+				
+				//PBR
+				program_pbr.RemoveLocalDescriptor(descriptorgraveyard[i].id);
+				
+				//
+
+
+				descriptorgraveyard.erase(descriptorgraveyard.begin() + i);
+			}
+		}
+	}
 }

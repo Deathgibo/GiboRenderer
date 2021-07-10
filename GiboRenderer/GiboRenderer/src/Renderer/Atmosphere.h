@@ -33,11 +33,11 @@ namespace Gibo {
 		};
 
 	public:
-		Atmosphere(vkcoreDevice& device, vkcoreTexture texture) : deviceref(device), Sky_Mesh(&device, texture), gatheredLUT(K), gatheredView(K), MiegatheredLUT(K), MiegatheredView(K) {};
+		Atmosphere(vkcoreDevice& device, vkcoreTexture texture, int framesinflight) : deviceref(device), Sky_Mesh(&device, texture, framesinflight), gatheredLUT(K), gatheredView(K), MiegatheredLUT(K), MiegatheredView(K) {};
 		~Atmosphere() = default;
 
 		void CleanUp();
-		void Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform);
+		void Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count);
 		void FillLUT();
 		void Draw(VkCommandBuffer cmdbuffer, int current_frame);
 
@@ -48,6 +48,8 @@ namespace Gibo {
 		void UpdateDebug(glm::vec4 pos) { shader_info.camdirection = pos; NotifyUpdate(); }
 		void UpdateFarPlane(VkExtent2D window_extent);
 
+		void SwapChainRecreate(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
+
 		VkImageView GetAmbientView() { return ambientview; }
 		VkImageView GetTransmittanceView() { return transmittanceview; }
 		VkSampler GetSampler() { return atmospheresampler; }
@@ -55,6 +57,8 @@ namespace Gibo {
 	private:
 		void BindAtmosphereBuffer(int x);
 		void NotifyUpdate() { needs_updated = true; frames_updated = 0; }
+		void CreateSwapChainData(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
+
 	private:
 		//cpu data
 		atmosphere_info info;
@@ -66,9 +70,14 @@ namespace Gibo {
 		vkcoreBuffer skymatrix_buffer;
 
 		//variables
-		static constexpr int K = 0;
+		static constexpr int K = 3;
 		int ambient_width = 256;
 		int ambient_height = 256;
+		int lut_width = 32;
+		int lut_height = 256;
+		int lut_depth = 32;
+		glm::ivec3 WORKGROUP_SIZE = glm::ivec3(1, 256, 1);
+		glm::ivec3 WORKGROUP_SIZE_AMBIENT = glm::ivec3(32, 32, 1);
 
 		//vulkan handles
 		RenderObject Sky_Mesh;

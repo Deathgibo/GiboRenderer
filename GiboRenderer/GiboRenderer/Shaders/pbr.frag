@@ -11,8 +11,6 @@ layout(location = 0) out vec4 outColor;
 layout(location = 2) in vec2 texCoords;
 layout(location = 3) in vec3 fragNormal;
 layout(location = 4) in vec3 WorldPos;
-layout(location = 5) in vec4 fragLightPos;
-layout(location = 6) in vec4 fragV;
 layout(location = 7) in vec3 fragTangent;
 layout(location = 8) in vec3 fragBiTangent;
 layout(location = 9) in mat3 TBN;
@@ -20,7 +18,6 @@ layout(location = 9) in mat3 TBN;
 layout(set = 0,binding = 2) uniform ProjVertexBuffer{
 	mat4 view;
 	mat4 proj;
-	mat4 lightmat;
 } pv;
 
 #define POINT 0.0
@@ -75,7 +72,6 @@ layout(set = 1, binding = 1) uniform MaterialBuffer
 	int specular_map;
 	int metal_map;
 	int normal_map;
-	vec3 alignment;
 } Material;
 
 layout(set = 0, binding = 7) uniform AtmosphereBuffer{
@@ -413,7 +409,7 @@ void main() {
 	  N = normal_map;
 	}
 	N = normalize(N);
-	vec3 campos = vec3(pv.lightmat[0][0],pv.lightmat[0][1],pv.lightmat[0][2]); //cam pos is just stored in this matrix for convineince
+	vec3 campos = amtosphere_info.campos.xyz; // vec3(pv.lightmat[0][0],pv.lightmat[0][1],pv.lightmat[0][2]); //cam pos is just stored in this matrix for convineince
 	vec3 V = normalize(campos - WorldPos);
 	vec3 T = normalize(fragTangent);
 	vec3 B = normalize(fragBiTangent);
@@ -431,13 +427,19 @@ void main() {
 	float roughness = Material.roughness;
 	roughness = roughness * roughness;
 
-    vec4 the_albedo = Material.albedo;
+	vec4 the_albedo = Material.albedo;
 	if(Material.albedo_map == 1)
 	{
 		vec4 alb = texture(Albedo_Map, vec2(texCoords.x, -texCoords.y));
 	    the_albedo = alb;
 	}
-	if(the_albedo.a <= 0)
+	float alpha_value = the_albedo.a;
+	if(Material.albedo.a != 1.0)
+	{
+		alpha_value = Material.albedo.a;
+	}
+
+	if(alpha_value <= 0.01)
 	{
 	  discard;
 	}
@@ -486,7 +488,7 @@ void main() {
 
 	SunColor *= suntransmittance;
 	SunColor = max(SunColor, 0.0);
-	//Color += SunColor;
+	Color += SunColor;
 
 	//Ambient Color
 	vec3 GlobalAmbient = vec3(.0,.0,.0);
@@ -498,14 +500,15 @@ void main() {
 
 	vec3 AmbientColor = diffuseColor * (AtmosphereAmbient);
 
-	//Color += AmbientColor;
+	Color += AmbientColor;
 
     //Tone-Mapping
    float exposure = 2.3; //lower exposure more detail in higher value
    Color = vec3(1.0) - exp(-Color * exposure);
 
-   outColor = vec4(Color, the_albedo.a);
-  
+   outColor = vec4(Color, alpha_value);
+  // outColor = vec4(1,0,0,1);
+  // outColor = vec4(SunColor, alpha_value);
   // outColor = light_data.linfo[0].color;
   // outColor = vec4(Color, 1);
 }

@@ -4,7 +4,7 @@
 
 #define WORKGROUP_SIZE 1
 
-layout(local_size_x=WORKGROUP_SIZE, local_size_y=WORKGROUP_SIZE, local_size_z=1) in;
+layout(local_size_x=32, local_size_y=32, local_size_z=1) in;
 
 layout(binding=0, rgba32f) uniform image2D AmbientLUT; //coherent restrict writeonly
 layout(binding=2, rgba32f) uniform image2D TransmittanceLUT; //coherent restrict writeonly

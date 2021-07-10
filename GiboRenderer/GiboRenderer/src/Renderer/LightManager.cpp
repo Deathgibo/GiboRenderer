@@ -22,6 +22,13 @@ namespace Gibo {
 
 		deviceref.CreateBuffer(sizeof(Light::lightparams) * MAX_LIGHTS, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, light_stagingbuffer);
 		deviceref.CreateBuffer(sizeof(int), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, lightcounter_stagingbuffer);
+
+		gpumemory_usage = sizeof(Light::lightparams) * MAX_LIGHTS * framesinflight + sizeof(int) * framesinflight + sizeof(Light::lightparams) * MAX_LIGHTS + sizeof(int);
+	}
+
+	void LightManager::PrintInfo()
+	{
+		Logger::Log("-----Light Manager-----\n", "number of current lights: ", light_map.size(), " GPU memory usage: ", gpumemory_usage, "\n");
 	}
 
 	void LightManager::CleanUp()
@@ -100,6 +107,12 @@ namespace Gibo {
 		if (light_map.count(light.lightmanager_id) != 0)
 		{
 			light_map.erase(light.lightmanager_id);
+		}
+		else
+		{
+#ifdef _DEBUG
+			Logger::LogWarning("removing light that isn't in lightmanager\n");
+#endif
 		}
 		light.lightmanager_id = -1;
 		NotifyUpdate();

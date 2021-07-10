@@ -6,10 +6,10 @@ namespace Gibo {
 
 	CommandPoolCache::CommandPoolCache(VkDevice device, VkPhysicalDevice physicaldevice, VkSurfaceKHR surface) : deviceref(device)
 	{
-		family_indices[0] = GetQueueFamily(physicaldevice, VK_QUEUE_GRAPHICS_BIT);
-		family_indices[1] = GetQueueFamily(physicaldevice, VK_QUEUE_TRANSFER_BIT);
-		family_indices[2] = GetQueueFamily(physicaldevice, VK_QUEUE_COMPUTE_BIT);
-		family_indices[3] = GetPresentQueueFamily(physicaldevice, surface);
+		family_indices[0] = PhysicalDeviceQuery::GetQueueFamily(physicaldevice, VK_QUEUE_GRAPHICS_BIT);
+		family_indices[1] = PhysicalDeviceQuery::GetQueueFamily(physicaldevice, VK_QUEUE_TRANSFER_BIT);
+		family_indices[2] = PhysicalDeviceQuery::GetQueueFamily(physicaldevice, VK_QUEUE_COMPUTE_BIT);
+		family_indices[3] = PhysicalDeviceQuery::GetPresentQueueFamily(physicaldevice, surface);
 
 		VkCommandPoolCreateInfo static_info;
 		static_info.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;

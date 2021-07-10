@@ -10,8 +10,6 @@ layout(location = 4) in vec3 inB;
 layout(location = 2) out vec2 texCoords;
 layout(location = 3) out vec3 fragNormal;
 layout(location = 4) out vec3 WorldPos;
-layout(location = 5) out vec4 fragLightPos;
-layout(location = 6) out vec4 fragV;
 layout(location = 7) out vec3 fragTangent;
 layout(location = 8) out vec3 fragBiTangent;
 layout(location = 9) out mat3 TBN;
@@ -24,7 +22,6 @@ layout(	push_constant ) uniform VertexMatricesBuffer
 layout(set = 0,binding = 2) uniform ProjVertexBuffer{
 	mat4 view;
 	mat4 proj;
-	mat4 lightmat;
 } pv;
 
 void main(){
@@ -36,11 +33,6 @@ void main(){
 	fragNormal = mat3(transpose(inverse(ubo.model))) * inNormal;
 	fragTangent = mat3(transpose(inverse(ubo.model))) * inT;
 	fragBiTangent = mat3(transpose(inverse(ubo.model))) * inB;
-
-	fragLightPos = pv.lightmat * ubo.model * vec4(inPosition, 1.0);
-	fragLightPos.y = -fragLightPos.y;
-	fragV = pv.view * ubo.model * vec4(vec3(inPosition.x, inPosition.y, inPosition.z), 1.0);
-	fragV.y = -fragV.y;
 
     //Gram-Schmidt process
     vec3 T = normalize(vec3(ubo.model * vec4(inT, 0.0)));

@@ -234,7 +234,7 @@ void main() {
      outColor = vec4(finalcolor , 1);
 	 if(uv < 0.5) //this only works if we do single scattering and just makes it if it hits the earth the atmosphere is black. But now if your high in the sky it won't simulate ground atmosphere
      {
-	   outColor = vec4(0,0,0,1);
+	   //outColor = vec4(0,0,0,1);
      }
 	 //outColor = vec4(1,0,0,1);
 	 //outColor = vec4(miescattercolor,1);

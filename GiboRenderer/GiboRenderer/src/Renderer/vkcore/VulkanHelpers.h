@@ -13,7 +13,7 @@ namespace Gibo {
 		std::vector<VkFormat> candidates = { VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT };
 		for (int i = 0; i < candidates.size(); i++)
 		{
-			if (CheckImageOptimalFormat(PhysicalDevice, candidates[i], VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
+			if (PhysicalDeviceQuery::CheckImageOptimalFormat(PhysicalDevice, candidates[i], VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT))
 			{
 				return candidates[i];
 			}

@@ -1,0 +1,20 @@
+get gpu timers working
+get resolution picking working as well as maybe look at compute cut off
+
+window size, rendertarget resolution, projection matrix. When i changed window size it just stretch the same image into it, maybe because i didnt change projection? just window and not rendergatet resolutions. 
+
+I want it to render the exact thing no matter what window size or resolution is.
+
+maybe do static material cache which would really help my renderobjects dynamic performance and less gpu memory used. 
+Also maybe deal with the messy passing pointer in and passing textures, and messy interface
+
+explore formats for rendertargets and textures, as well as see if having more than 1 byte precision for textures does anythig, as well as explore mipping-mapping, anisotropy, and multisampling shading in the pipeline
+
+add profiling visual, like milliseconds, cpu usage, add text to overlay pass
+add dynamic meshes - trampoleen, cutting holes, meta balls, etc
+add shadows - 
+add better geometry and geometry culling optimizations
+explore better texture quality techiqnues, mega textures, formats precision, etc
+explore how to load all models and quickly and get really good quality models in
+
+*always check and optimize main update function and dynamic stuff

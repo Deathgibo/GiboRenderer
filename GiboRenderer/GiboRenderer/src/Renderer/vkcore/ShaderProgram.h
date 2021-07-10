@@ -51,37 +51,6 @@ namespace Gibo {
 			uint32_t size;     //must be multiple of 4
 		};
 
-		//just a quick way to hand out id's. counter will increment and repeat at IDHELPERSIZE and the slots just represent if that id is taken or not
-		//static constexpr int IDHELPERSIZE = 1000;
-		struct idhelper
-		{
-			std::array<bool, 1000>slots;
-			uint32_t counter;
-
-			idhelper()
-			{
-				slots.fill(false);
-				counter = 0;
-			}
-
-			uint32_t GetNextID()//assumes every slot will never all be true
-			{
-				while (slots[counter] == true)
-				{
-					counter = (counter + 1) % 1000;
-				}
-				uint32_t returncounter = counter;
-				slots[returncounter] = true;
-				counter = (counter + 1) % 1000;
-				return returncounter;
-			}
-
-			void FreeID(uint32_t id)
-			{
-				slots[id] = false;
-			}
-		};
-
 	public:
 		ShaderProgram() = default;
 		~ShaderProgram() = default;
@@ -102,9 +71,9 @@ namespace Gibo {
 		void SetSpecificGlobalDescriptor(int current_frame, std::vector<vkcoreBuffer>& uniformbuffers, std::vector<uint64_t>& buffersizes, std::vector<VkImageView>& imageviews,
 			std::vector<VkSampler>& samplers, std::vector<VkBufferView>& bufferviews);
 
-		void AddLocalDescriptor(uint32_t& id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
+		void AddLocalDescriptor(uint32_t descriptor_id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
 			               std::vector<std::vector<VkImageView>>& imageviews, std::vector<std::vector<VkSampler>>& samplers, std::vector<std::vector<VkBufferView>>& bufferviews);
-		void RemoveLocalDescriptor(uint32_t id);
+		void RemoveLocalDescriptor(uint32_t descriptor_id);
 
 		VkDescriptorSetLayout& GetLocalLayout() { return LocalLayout; }
 		VkDescriptorSetLayout& GetGlobalLayout() { return GlobalLayout; }
@@ -134,7 +103,6 @@ namespace Gibo {
 		std::vector<VkPipelineShaderStageCreateInfo> ShaderStageInfo;
 			
 		//other
-		idhelper id_handler;
 		VkDevice deviceref;
 		uint32_t mframesinflight;
 	};

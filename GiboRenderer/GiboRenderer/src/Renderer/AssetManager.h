@@ -37,9 +37,9 @@ namespace Gibo {
 		void CleanUp();
 		void PrintMemory() const; 
 		Mesh GetMesh(std::string filename);
+		Mesh GetQuadMesh();
 	private:
-		void LoadMesh(std::string filename, std::vector<glm::vec3>& positions, std::vector<glm::vec3>& normals, std::vector<glm::vec2>& texcoords, std::vector<glm::vec3>& tangents, std::vector<glm::vec3>& bitangents,
-						std::vector<unsigned int>& indices);
+		void LoadMesh(std::string filename, std::vector<float>& vertexdata, std::vector<unsigned int>& indexdata);
 		struct Mesh_internal
 		{
 			vkcoreBuffer vbo;
@@ -48,6 +48,7 @@ namespace Gibo {
 		};
 	private:
 		std::unordered_map<std::string, Mesh_internal> meshCache;
+		Mesh_internal Quad_Mesh;
 		size_t total_buffer_size;
 		vkcoreDevice& deviceref;
 	};
@@ -76,16 +77,43 @@ namespace Gibo {
 			std::vector<std::vector<unsigned int>> indices;
 			std::vector<std::vector<glm::vec3>> tangents;
 			std::vector<std::vector<glm::vec3>> bitangents;
+
+			bool checkvalidity()
+			{
+				int mesh_size = positions.size();
+				if (normals.size() != mesh_size || texcoords.size() != mesh_size || tangents.size() != mesh_size || bitangents.size() != mesh_size || indices.size() != mesh_size)
+				{
+					Logger::LogWarning("model loaded properties don't agree on mesh number\n");
+					return false;
+				}
+				for (int i = 0; i < mesh_size; i++)
+				{
+					int vertex_size = positions[i].size();
+					if (normals[i].size() != vertex_size || texcoords[i].size() != vertex_size || tangents[i].size() != vertex_size || bitangents[i].size() != vertex_size)
+					{
+						Logger::LogWarning("model loaded properties don't match vertex count on mesh ", i, "\n");
+						return false;
+					}
+
+					if (indices[i].size() == 0)
+					{
+						Logger::LogError("Don't support models with no indexing yet\n");
+						return false;
+					}
+				}
+
+				return true;
+			}
 		};
 	public:
-		static bool Load(std::string path, std::vector<std::vector<glm::vec3>>& positions, std::vector<std::vector<glm::vec3>>& normals,
-			std::vector<std::vector<glm::vec2>>& texcoords, std::vector<std::vector<unsigned int>>& indices, std::vector<std::vector<glm::vec3>>& tangent, std::vector<std::vector<glm::vec3>>& bitangent);
+		static bool LoadQuad(std::vector<float>& vertexdata, std::vector<unsigned int>& indexdata);
+		static bool Load(std::string path, std::vector<std::vector<float>>& vertexdata, std::vector<std::vector<unsigned int>>& indexdata);
 	private:
-		static void Process_Node(aiNode* node, const aiScene* scene, std::vector<std::vector<glm::vec3>>& positions, std::vector<std::vector<glm::vec3>>& normals,
-			std::vector<std::vector<glm::vec2>>& texcoords, std::vector<std::vector<unsigned int>>& indices, std::vector<std::vector<glm::vec3>>& tangent, std::vector<std::vector<glm::vec3>>& bitangent);
+		static void Process_Node(aiNode* node, const aiScene* scene, std::vector<std::vector<float>>& vertexdata, std::vector<std::vector<unsigned int>>& indexdata);
 
-		static void Process_Mesh(aiMesh* mesh, const aiScene * scene, std::vector<glm::vec3>& positions, std::vector<glm::vec3>& normals,
-			std::vector<glm::vec2>& texcoords, std::vector<unsigned int>& indices, std::vector<glm::vec3>& tangent, std::vector<glm::vec3>& bitangent);
+		static void Process_Mesh(aiMesh* mesh, const aiScene * scene, std::vector<float>& vertexdata, std::vector<unsigned int>& indexdata);
+
+		static void calcAverageTangent(unsigned int * indices, unsigned int indiceCount, float * vertices, unsigned int verticeCount, unsigned int vLength, unsigned int tangentoffset);
 	};
 	
 }
