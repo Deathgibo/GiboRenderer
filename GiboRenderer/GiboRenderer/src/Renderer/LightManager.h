@@ -1,7 +1,7 @@
 #pragma once
 #include "Light.h"
 #include "vkcore/vkcoreDevice.h"
-
+#include "../Utilities/memorypractice.h"
 namespace Gibo {
 
 	/*
@@ -19,7 +19,7 @@ namespace Gibo {
 	public:
 		static constexpr int MAX_LIGHTS = 120; //this has to match what is in the pbr shader. TODO - any way to make this dynamic?
 
-		LightManager(vkcoreDevice& device, int framesinflight) : deviceref(device) { CreateBuffers(framesinflight); };
+		LightManager(vkcoreDevice& device, int framesinflight) : deviceref(device), light_pool(MAX_LIGHTS) { CreateBuffers(framesinflight); };
 		~LightManager() = default;
 
 		//no copying/moving should be allowed from this class
@@ -32,6 +32,18 @@ namespace Gibo {
 		void CleanUp();
 		void Update(int framecount);
 		void PrintInfo();
+
+		Light* CreateLight()
+		{
+			Light* a = new(light_pool.allocate()) Light();
+			return a;
+		}
+
+		void DestroyLight(Light* object)
+		{
+			object->~Light();
+			light_pool.deallocate(object);
+		}
 
 		void AddLight(Light& light);
 		void RemoveLight(Light& light);
@@ -52,6 +64,8 @@ namespace Gibo {
 		std::vector<vkcoreBuffer> lightcounter_buffer; //one for each frame in flight
 		vkcoreBuffer light_stagingbuffer;
 		vkcoreBuffer lightcounter_stagingbuffer;
+
+		PoolAllocator<Light> light_pool;
 
 		vkcoreDevice& deviceref;
 

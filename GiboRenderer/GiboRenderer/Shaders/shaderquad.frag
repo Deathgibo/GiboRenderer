@@ -8,7 +8,7 @@ layout(binding = 1) uniform sampler2D tex;
 
 void main() {
     //vec4 textureColor = imageLoad(texSampler, ivec2(400, 800));
-    vec4 textureColor = texture(tex, texuv);
+    vec4 textureColor = texture(tex, vec2(texuv.x, texuv.y)); //maybe flip this?
 
     outColor = vec4(textureColor.xyz, 1);
 	//outColor = vec4(1,0,1, 1);

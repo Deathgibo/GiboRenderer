@@ -130,7 +130,7 @@ namespace Gibo {
 			3,1,2
 		};
 
-		calcAverageTangent(indexdata2.data(), indexdata2.size(), vertexdata2.data(), vertexdata2.size(), 14, 8);
+		//calcAverageTangent(indexdata2.data(), indexdata2.size(), vertexdata2.data(), vertexdata2.size(), 14, 8);
 		
 		vertexdata = vertexdata2;
 		indexdata = indexdata2;

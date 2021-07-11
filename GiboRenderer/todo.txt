@@ -1,5 +1,6 @@
 get gpu timers working
 get resolution picking working as well as maybe look at compute cut off
+right now all my renderobjects are created on heap seperately and im looping through that. I need to create renderobject pool and allocate everything from that so we still have pointer hopping but in memory they are all right next to eachother. The other option is to have 1 data structure.
 
 window size, rendertarget resolution, projection matrix. When i changed window size it just stretch the same image into it, maybe because i didnt change projection? just window and not rendergatet resolutions. 
 

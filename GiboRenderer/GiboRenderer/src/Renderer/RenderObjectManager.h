@@ -1,5 +1,6 @@
 #pragma once
 #include "RenderObject.h"
+#include "../Utilities/memorypractice.h"
 #include <array>
 
 namespace Gibo {
@@ -26,7 +27,7 @@ namespace Gibo {
 	public:
 		enum BIN_TYPE : int { REGULAR, BLENDABLE };
 		static const int BIN_SIZE = 2;
-		static const int MAX_OBJECTS_ALLOWED = 150; //this is the number of max objects allowed so we can preallocate for some data-structures
+		static const int MAX_OBJECTS_ALLOWED = 200; //this is the number of max objects allowed so we can preallocate for some data-structures
 		
 		struct graveyardinfo 
 		{
@@ -39,7 +40,7 @@ namespace Gibo {
 		//static constexpr int IDHELPERSIZE = 1000;
 		struct idhelper
 		{
-			std::array<bool, 1000>slots;
+			std::array<bool, MAX_OBJECTS_ALLOWED>slots;
 			uint32_t counter;
 
 			idhelper()
@@ -52,11 +53,11 @@ namespace Gibo {
 			{
 				while (slots[counter] == true)
 				{
-					counter = (counter + 1) % 1000;
+					counter = (counter + 1) % slots.size();
 				}
 				uint32_t returncounter = counter;
 				slots[returncounter] = true;
-				counter = (counter + 1) % 1000;
+				counter = (counter + 1) % slots.size();
 				return returncounter;
 			}
 
@@ -67,7 +68,7 @@ namespace Gibo {
 		};
 
 	public:
-		RenderObjectManager(vkcoreDevice& device, int framesinflight) : deviceref(device), maxframesinflight(framesinflight)
+		RenderObjectManager(vkcoreDevice& device, int framesinflight) : deviceref(device), maxframesinflight(framesinflight), object_pool(MAX_OBJECTS_ALLOWED)
 		{
 			graveyard.reserve(MAX_OBJECTS_ALLOWED); Object_Bin[0].reserve(MAX_OBJECTS_ALLOWED); Object_Bin[1].reserve(MAX_OBJECTS_ALLOWED); Object_vector.reserve(MAX_OBJECTS_ALLOWED);
 		};
@@ -75,9 +76,22 @@ namespace Gibo {
 
 		//void CreateRenderObject();
 		//void DeleteRenderObject();
+		RenderObject* CreateRenderObject(vkcoreDevice* device, vkcoreTexture defaulttexture)
+		{
+			RenderObject* a = new(object_pool.allocate()) RenderObject(device, defaulttexture, maxframesinflight);
+			return a;
+		}
+
+		//ONLY call if you didn't add or remove this renderobject for some reason
+		void DeleteRenderObject(RenderObject* object)
+		{
+			object->~RenderObject();//need to explicilty call deconstructor because deallocate doesn't destroy the memory
+			object_pool.deallocate(object);
+		}
 
 		void AddRenderObject(RenderObject* object, BIN_TYPE type)
 		{
+			
 			//give object an id
 			object->descriptor_id = idmanager.GetNextID();
 
@@ -162,8 +176,11 @@ namespace Gibo {
 			idmanager.FreeID(object->descriptor_id);
 
 			//gpu is not using memory anymore so we are free to delete it
-			delete object;
-			object = nullptr;
+			object->~RenderObject();//need to explicilty call deconstructor because deallocate doesn't destroy the memory
+			object_pool.deallocate(object);
+
+			//delete object;
+			//object = nullptr;
 		}
 
 	private:
@@ -173,6 +190,8 @@ namespace Gibo {
 
 		vkcoreDevice& deviceref;
 		int maxframesinflight;
+
+		PoolAllocator<RenderObject> object_pool;
 
 		idhelper idmanager; //dishes out ids to renderobjects submitted and frees id when object is delete.
 	};

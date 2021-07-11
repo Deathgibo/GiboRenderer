@@ -10,6 +10,9 @@ namespace Gibo {
 		This is also where the shader vertex attributes are defined which every shader needs to follow for now (in the cpp file)
 		dynamic states are not supported for pipelines right now
 		todo - research more about pipeline caches to reduce start_time
+
+		viewports and scissors - viewport specifies where in the framebuffer you want to actually render. Scissor specifies where in the framebuffer to not cut off, anything
+		outside the scissors will be discarded. 
 	*/
 
 	struct RasterizationState {

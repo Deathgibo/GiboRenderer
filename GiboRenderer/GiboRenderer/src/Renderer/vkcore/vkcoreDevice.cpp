@@ -38,6 +38,9 @@ namespace Gibo {
 		renderpassCache->Cleanup();
 		delete renderpassCache;
 
+		querymanager->CleanUp();
+		delete querymanager;
+
 		for (int i = 0; i < swapChainImageViews.size(); i++)
 		{
 			vkDestroyImageView(LogicalDevice, swapChainImageViews[i], nullptr);
@@ -64,6 +67,7 @@ namespace Gibo {
 		pipelineCache = new PipelineCache(LogicalDevice);
 		cmdpoolCache = new CommandPoolCache(LogicalDevice, PhysicalDevice, Surface);
 		cmdpoolCache->PrintInfo();
+		querymanager = new QueryManager(LogicalDevice, PhysicalDevice, framesinflight);
 
 		return valid;
 	}
@@ -270,6 +274,10 @@ namespace Gibo {
 
 			queueCreateInfos.push_back(queueCreateInfo);
 		}
+		VkPhysicalDeviceHostQueryResetFeatures resetFeatures = {};
+		resetFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_HOST_QUERY_RESET_FEATURES;
+		resetFeatures.pNext = nullptr;
+		resetFeatures.hostQueryReset = VK_TRUE;
 
 		//choose which physical device features we want to enable
 		VkPhysicalDeviceFeatures features;
@@ -296,7 +304,7 @@ namespace Gibo {
 
 		VkDeviceCreateInfo info{};
 		info.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-		info.pNext = nullptr;
+		info.pNext = &resetFeatures; //nullptr
 		info.flags = 0;
 		info.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
 		info.pQueueCreateInfos = queueCreateInfos.data();
@@ -423,7 +431,7 @@ namespace Gibo {
 		Logger::Log("desired format: ", desired_format, " format chosen: ", thesurfaceformat.format, " desired color space: ", desired_colorspace, " color space chosen: ", thesurfaceformat.colorSpace, "\n");
 
 		//Pick present mode is just an enum about how the swap chain handles swapping the images, it can be vsync, triple buffer, single, etc
-		VkPresentModeKHR desired_present_mode = VK_PRESENT_MODE_MAILBOX_KHR;
+		VkPresentModeKHR desired_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; //VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR
 		VkPresentModeKHR thesurfacepresentmode;
 		for (int i = 0; i < presentmodes.size(); i++)
 		{
@@ -436,7 +444,6 @@ namespace Gibo {
 			thesurfacepresentmode = VK_PRESENT_MODE_FIFO_KHR; //FIFO must be present so use as default if we can't find desired present mode
 		}
 		Logger::Log("desired present mode: ", desired_present_mode, " present mode selected: ", thesurfacepresentmode, "\n");
-
 		//Pick size of swapchain images
 		//if its 0xFFFFFFFF that means the window is based off swapchain size. So tell swapchain what we want our size to be. Else size is just what we set the window to be.
 		VkExtent2D the_extent;
@@ -844,4 +851,5 @@ namespace Gibo {
 			vkFreeCommandBuffers(LogicalDevice, cmdpoolCache->GetCommandPool(POOL_TYPE::HELPER, familyoperation), 1, &buffer);
 		}
 	}
+
 }

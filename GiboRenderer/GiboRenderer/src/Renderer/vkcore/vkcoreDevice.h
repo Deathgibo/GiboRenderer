@@ -4,6 +4,7 @@
 #include "PipelineCache.h"
 #include "SamplerCache.h"
 #include "CommandPoolCache.h"
+#include "QueryManager.h"
 
 /*
  This is the main class of the vulkan backend. This will be ideally used by frontend as the main interface, passed around by reference.
@@ -94,6 +95,7 @@ namespace Gibo {
 		PipelineCache& GetPipelineCache() { return *pipelineCache; }
 		SamplerCache& GetSamplerCache() { return *samplerCache; }
 		VmaAllocator& GetAllocator() { return Allocator; }
+		QueryManager& GetQueryManager() { return *querymanager; }
 		CommandPoolCache& GetCommandPoolCache() { return *cmdpoolCache; }
 		VkFormat GetswapchainFormat() { return SwapChainFormat; }
 		VkImage GetswapchainImage(int x) { return swapChainImages[x]; }
@@ -128,6 +130,7 @@ namespace Gibo {
 		PipelineCache* pipelineCache;
 		SamplerCache* samplerCache;
 		CommandPoolCache* cmdpoolCache;
+		QueryManager* querymanager;
 		VkInstance Instance;
 		VkSurfaceKHR Surface;
 		VkPhysicalDevice PhysicalDevice;

@@ -129,6 +129,9 @@
     <ClInclude Include="src\ThirdParty\ImGui\imgui_impl_glfw.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\vkcore\QueryManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\pch.cpp">
@@ -213,6 +216,9 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\ThirdParty\ImGui\imgui_impl_glfw.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\Renderer\vkcore\QueryManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

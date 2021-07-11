@@ -13,7 +13,7 @@ namespace Gibo {
 
 	class RenderManager
 	{
-		enum SAMPLE_COUNT { ONE, TWO, FOUR, EIGHT, SIXTEEN, THIRTYTWO };
+		enum SAMPLE_COUNT : int { ONE, TWO, FOUR, EIGHT, SIXTEEN, THIRTYTWO };
 		enum RESOLUTION { THREESIXTYP, FOUREIGHTYP, SEVENTWENTYP, TENEIGHTYP, FOURTEENFORTYP, FOURKP };
 		VkSampleCountFlagBits ConvertSampleCount(SAMPLE_COUNT x)
 		{
@@ -35,7 +35,7 @@ namespace Gibo {
 			switch (res)
 			{
 			case THREESIXTYP:	 width = 640;  height = 360;  break;
-			case FOUREIGHTYP:	 width = 854;  height = 480;  break;
+			case FOUREIGHTYP:	 width = 720;  height = 480;  break;
 			case SEVENTWENTYP:   width = 1280; height = 720;  break;
 			case TENEIGHTYP:	 width = 1920; height = 1080; break; 
 			case FOURTEENFORTYP: width = 2560; height = 1440; break;
@@ -84,6 +84,7 @@ namespace Gibo {
 			atmosphere->UpdateSunPosition(pos);
 		}
 
+		void SetResolutionFitted(bool val) { Resolution_Fitted = val; }
 		bool IsWindowOpen() const;
 		void SetWindowTitle(std::string title) const;
 		Input& GetInputManager() { return InputManager; }
@@ -104,6 +105,13 @@ namespace Gibo {
 		void CleanUpGeneral();
 		void CreateAtmosphere();
 		void CreateCompute();
+
+		void CreateQuad();
+		void CleanUpQuad();
+		void RecordQuadCmd(int current_frame, int current_imageindex);
+		void Quadcreateimagedata();
+		void Quaddeleteimagedata();
+
 		void RecordComputeCmd(int current_frame, int current_imageindex);
 		void RecordPBRCmd(int current_frame);
 		void UpdateDescriptorGraveYard();
@@ -128,9 +136,20 @@ namespace Gibo {
 		VkExtent2D window_extent{ 800, 640 };
 		VkSampleCountFlagBits multisampling_count = VK_SAMPLE_COUNT_1_BIT;
 		VkExtent2D Resolution = { 800, 640 };
+		bool Resolution_Fitted = true;
+		VkExtent2D proj_extent = { 800 , 640 };
 		float FOV = 45.0f;
 		float near_plane = 0.01f;
 		float far_plane = 1000.0f;
+
+		//imgui variables
+		int imguimulti_count = 1;
+		bool multi_changed = false;
+		bool full_screenchanged = false;
+		bool imguifullscreen = false;
+		float imguifov = 45;
+		int imguiresolution = 0;
+		bool resolution_changed = false;
 
 		//pbr
 		VkRenderPass renderpass_pbr;
@@ -158,6 +177,22 @@ namespace Gibo {
 		std::vector<VkCommandBuffer> cmdbuffer_imgui;
 		std::vector<VkFramebuffer> framebuffer_imgui;
 
+		//quad
+		std::vector<vkcoreImage> color_attachmentquad;
+		std::vector<VkImageView> color_attachmentviewquad;
+		VkRenderPass renderpass_quad;
+		std::vector<VkFramebuffer> framebuffers_quad;
+		ShaderProgram program_quad;
+		vkcorePipeline pipeline_quad;
+		std::vector<VkCommandBuffer> cmdbuffer_quad;
+		VkSampler sampler_quad;
+		MeshCache::Mesh mesh_quad;
+
+		std::array<float, 30> time_mainpass;
+		std::array<float, 30> time_quad;
+		std::array<float, 30> time_pp;
+		std::array<float, 30> time_cpu;
+		int time_counter = 0;
 
 		glm::mat4 proj_matrix;
 		glm::mat4 cam_matrix;
@@ -169,6 +204,7 @@ namespace Gibo {
 		std::vector<VkFence> swapimageFences;
 		std::vector<VkSemaphore> semaphore_imagefetch;
 		std::vector<VkSemaphore> semaphore_colorpass;
+		std::vector<VkSemaphore> semaphore_quad;
 		std::vector<VkSemaphore> semaphore_computepass;
 		std::vector<VkSemaphore> semaphore_imgui;
 

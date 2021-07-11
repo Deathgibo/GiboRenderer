@@ -1,6 +1,24 @@
 #pragma once
 
 /*
+
+--RESOLUTION/WindowSize/Etc--
+	Okay so in terms of all of this it all starts with your render attachment and swapchain resolutions. Then these go in a framebuffer which can have a different resolution. Then
+	the pipeline viewport specifies the transformation of the attachments to the framebuffer, and the scissor specifies what pixels won't get discared in the framebuffer. For instance you
+	can have a color attachment 800x800 and framebuffer 400x400. if you set the viewport as 200x200 that 800x800 image will get squashes and show in half the framebuffer. Then finally
+	when you begin a renderpass you specify the area where the attachments will be effected (it should be same as attachments for best performance) not anything to do with framebuffer.
+	Then on top of this you have the actual window but I dont vulkan has any idea about a window, so I think its update to the operating system for that.
+
+	Projection Matrix: the projection matrix takes in a aspect ratio, this represents the aspect ratio of our virtual camera and its just a ratio not any width or height. For the most part
+	this doesn't matter except we really do want the aspect ratio to match the ratio of our monitor so they align and you don't waste rendering space or have stretching
+
+	Window Size: Window size is just the window size so not much here, but its important to note most of the time the swapchain image size will be the size of the window. However
+	if you change the window you have to change the swapchain
+
+	Resolution: This is the resolution of our render targets, this will matters a lot of course because its the number of pixels that get drawn on, the more you have the more precise it is. This 
+	doesn't have to match window size or anything, but of course you need to present the swap chain image. So if it differs you have to get that information over to the swapchain probably by
+	drawing over a quad.
+
 --SHADER MEMORY--
 	GPU memory is important and I think it will be useful to test different methods. Like trying out different descriptor types, like push constants, uniform buffer, dynamic buffer.
 	As well as is it better to map and unmap them on cpu, keep them mapped on cpu, or create staging buffer and copy cpu to gpu every frame?

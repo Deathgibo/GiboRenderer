@@ -41,7 +41,8 @@ namespace Gibo {
 		}
 
 		~Timer() {
-			Stop();
+			double a;
+			Stop(a);
 		}
 
 		float GetTime() {
@@ -56,7 +57,11 @@ namespace Gibo {
 			return ms;
 		}
 
-		void Stop() {
+		void Sleep() {
+
+		}
+
+		void Stop(double& time) {
 			if (stopped) {
 				return;
 			}
@@ -68,12 +73,12 @@ namespace Gibo {
 
 			auto duration = end - start;
 			double ms = duration * 0.001;
-
+			time = ms;
 			if (log) {
 				Logger::LogTime("(" + (std::string)desc + ") " + std::to_string(ms) + " milliseconds\n");
 			}
 
-			PERFORMANCE_TEST::results.push_back({ desc, ms });
+			//PERFORMANCE_TEST::results.push_back({ desc, ms });
 		}
 
 		void InsertToFile() {

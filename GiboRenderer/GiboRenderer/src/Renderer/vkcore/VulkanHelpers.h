@@ -420,13 +420,18 @@ namespace Gibo {
 		*/
 	}
 
+	/* QUERY NOTES
+	VkPhysicalDeviceLimits::timestampComputeAndGraphics is a boolean telling you whether the device supports these or not
+	VkPhysicalDeviceLimits::timestampPeriod is the number of nanoseconds required for a timestamp query to be incremented by 1
 
-	static void QueryStamps()
+	VkQueryType: VK_QUERY_TYPE_OCCLUSION - is for occlusion testing, I think it tells you how many fragments get ran or overwritten or something
+	VK_QUERY_TYPE_PIPELINE_STATISTICS - this tells you how many invocations each pipeline stage gets ran like fragment, vertex. seems useful
+	VK_QUERY_TYPE_TIMESTAMP - this is the one that gives you the time gpu takes.
+	*/
+	static void QueryStamps(VkPhysicalDevice physicaldevice)
 	{
 		/*
-		VkPhysicalDeviceLimits::timestampComputeAndGraphics is a boolean telling you whether the device supports these or not
-		VkPhysicalDeviceLimits::timestampPeriod is the number of nanoseconds required for a timestamp query to be incremented by 1
-		
+
 		use muiltiple pools per frame in flight
 
 		the timer value will not be written until all previously submitted commands reached the specified stage

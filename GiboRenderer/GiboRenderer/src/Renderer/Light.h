@@ -34,7 +34,7 @@ namespace Gibo {
 
 		enum class light_type : uint8_t { POINT, SPOT, DIRECTIONAL, FOCUSED_SPOT };
 	public:
-		Light() {};
+		Light() : lightmanager_id(-1){};
 		Light(light_type val) { info.type = convert_type_to_float(val); }
 		Light(lightparams params) : info(params) {}
 		~Light() { if (isSubmitted()) { Logger::LogError("You need to remove light from manager before deleting. enjoy your corrupted pixels!\n"); } }
@@ -62,7 +62,7 @@ namespace Gibo {
 		}
 	private:
 		lightparams info;
-		int lightmanager_id = -1; //this is changed in the lightmanager class. It wil lbe -1 if its removed, and some other number if its in
+		int lightmanager_id; //this is changed in the lightmanager class. It wil lbe -1 if its removed, and some other number if its in
 	};
 
 }

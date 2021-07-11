@@ -7,7 +7,7 @@
 
 namespace Gibo {
 
-	void Atmosphere::Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count)
+	void Atmosphere::Create(VkExtent2D proj_extent, VkExtent2D pipeline_extent, float fov, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count)
 	{
 		//set info
 		float EARTH_RADIUS = 6360000.f;
@@ -27,8 +27,8 @@ namespace Gibo {
 		shader_info.lightdir = glm::normalize(glm::vec4(0, -1, 0, 1));
 
 		float farplanez = 10000;
-		float halfx = tan(glm::radians(45.0 / 2.0)) * farplanez * (window_extent.width / window_extent.height);
-		float halfy = tan(glm::radians(45.0 / 2.0)) * farplanez;
+		float halfx = tan(glm::radians(fov / 2.0)) * farplanez * (proj_extent.width / proj_extent.height);
+		float halfy = tan(glm::radians(fov / 2.0)) * farplanez;
 
 		shader_info.farplane = glm::vec4(halfx, halfy, farplanez, 1);
 		shader_info.camdirection;
@@ -234,7 +234,7 @@ namespace Gibo {
 		pipeline_ambient = deviceref.GetPipelineCache().GetComputePipeline(program_ambient.GetShaderStageInfo()[0], &program_ambient.GetGlobalLayout(), 1);
 
 
-		CreateSwapChainData(window_extent, renderpass, sample_count);
+		CreateSwapChainData(pipeline_extent, renderpass, sample_count);
 
 		//filling descriptors
 
@@ -664,11 +664,11 @@ namespace Gibo {
 		}
 	}
 
-	void Atmosphere::UpdateFarPlane(VkExtent2D window_extent)
+	void Atmosphere::UpdateFarPlane(VkExtent2D window_extent, float fov)
 	{
 		float width = window_extent.width;
 		float height = window_extent.height;
-		float angle = 45.0;
+		float angle = fov;
 
 		float farplanez = 10000;
 		float halfx = tan(glm::radians(angle / 2.0)) * farplanez * (width / height);
@@ -683,9 +683,9 @@ namespace Gibo {
 		deviceref.BindData(shaderinfo_buffer[x].allocation, &shader_info, sizeof(atmosphere_shader));
 	}
 
-	void Atmosphere::CreateSwapChainData(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
+	void Atmosphere::CreateSwapChainData(VkExtent2D pipeline_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
 	{
-		PipelineData pipelinedata(window_extent.width, window_extent.height);
+		PipelineData pipelinedata(pipeline_extent.width, pipeline_extent.height);
 
 		pipelinedata.ColorBlendstate.blendenable = VK_FALSE;
 
@@ -708,15 +708,15 @@ namespace Gibo {
 			&program_sky.GetGlobalLayout(), 1);
 	}
 
-	void Atmosphere::SwapChainRecreate(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
+	void Atmosphere::SwapChainRecreate(VkExtent2D pipeline_extent, VkExtent2D proj_extent, float fov, VkRenderPass renderpass, VkSampleCountFlagBits sample_count)
 	{
 		vkDestroyPipelineLayout(deviceref.GetDevice(), pipeline_sky.layout, nullptr);
 		vkDestroyPipeline(deviceref.GetDevice(), pipeline_sky.pipeline, nullptr);
 
 		//recreate
-		CreateSwapChainData(window_extent, renderpass, sample_count);
+		CreateSwapChainData(pipeline_extent, renderpass, sample_count);
 
-		UpdateFarPlane(window_extent);
+		UpdateFarPlane(proj_extent, fov);
 	}
 
 	void Atmosphere::Draw(VkCommandBuffer cmdbuffer, int current_frame)

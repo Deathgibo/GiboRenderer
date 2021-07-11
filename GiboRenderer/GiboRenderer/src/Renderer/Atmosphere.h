@@ -37,7 +37,7 @@ namespace Gibo {
 		~Atmosphere() = default;
 
 		void CleanUp();
-		void Create(VkExtent2D window_extent, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count);
+		void Create(VkExtent2D proj_extent, VkExtent2D pipeline_extent, float fov, VkRenderPass renderpass, MeshCache& mcache, int framesinflight, std::vector<vkcoreBuffer> pv_uniform, VkSampleCountFlagBits sample_count);
 		void FillLUT();
 		void Draw(VkCommandBuffer cmdbuffer, int current_frame);
 
@@ -46,9 +46,9 @@ namespace Gibo {
 		void UpdateCamPosition(glm::vec4 pos) { shader_info.campos = pos; NotifyUpdate(); }
 		void UpdateSunPosition(glm::vec4 pos) { shader_info.lightdir = pos; NotifyUpdate();}
 		void UpdateDebug(glm::vec4 pos) { shader_info.camdirection = pos; NotifyUpdate(); }
-		void UpdateFarPlane(VkExtent2D window_extent);
+		void UpdateFarPlane(VkExtent2D window_extent, float fov);
 
-		void SwapChainRecreate(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
+		void SwapChainRecreate(VkExtent2D pipeline_extent, VkExtent2D proj_extent, float fov, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
 
 		VkImageView GetAmbientView() { return ambientview; }
 		VkImageView GetTransmittanceView() { return transmittanceview; }
@@ -57,7 +57,7 @@ namespace Gibo {
 	private:
 		void BindAtmosphereBuffer(int x);
 		void NotifyUpdate() { needs_updated = true; frames_updated = 0; }
-		void CreateSwapChainData(VkExtent2D window_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
+		void CreateSwapChainData(VkExtent2D pipeline_extent, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
 
 	private:
 		//cpu data

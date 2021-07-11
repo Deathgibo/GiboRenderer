@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Renderer\vkcore\QueryManager.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imgui.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imgui_impl_glfw.h" />
@@ -59,6 +60,12 @@
     <ClInclude Include="src\Renderer\TextureCache.h" />
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="src\Renderer\vkcore\QueryManager.cpp">
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">../../pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">../../pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../../pch.h</PrecompiledHeaderFile>
+      <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../../pch.h</PrecompiledHeaderFile>
+    </ClCompile>
     <ClCompile Include="src\ThirdParty\ImGui\imgui.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">NotUsing</PrecompiledHeader>
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">NotUsing</PrecompiledHeader>
