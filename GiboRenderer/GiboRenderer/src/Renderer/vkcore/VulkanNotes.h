@@ -198,5 +198,12 @@
 	In terms of how you render scene you could synrhconize operations by different command buffers and semaphores. You could put them all in one command buffer and do pipeline barriers on the memory.
 	You could do different subpasses with dependencies between them. Theres a lot of ways and its good to know your options.
 
+--COMPUTE--
+For compute shader you basically have xyz workgroups, then inside each of these you have xyz localworkgroups. Gpu specify the maximum number of workgroups and localworkgroups. The work groups
+run in parralell and local work groups all run in parallel. The compute shader runs for every local work group. The important thing is work groups can share memory, and there are memory barriers
+and execution barriers you can set up for local work groups. 
+Also for limits maxComputeWorkGroupCount[3] is the max number of xyz work groups you can dispatch on a dispatch call.
+maxComputeWorkGroupSize[3] is the max number of xyz local workgroup count specified in the shader you can have
+maxComputeWorkGroupInvocations is the max number of x*y*z localworkgroups you can have in the shader
 
 */

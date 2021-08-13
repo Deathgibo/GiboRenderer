@@ -136,7 +136,11 @@ namespace Gibo {
 		rasterinfo.lineWidth = data.Rasterizationstate.linewidth;
 		rasterinfo.cullMode = data.Rasterizationstate.cullmode;// VK_CULL_MODE_BACK_BIT;
 		rasterinfo.frontFace = data.Rasterizationstate.frontface;
-		rasterinfo.depthBiasEnable = VK_FALSE;
+		rasterinfo.depthBiasEnable = data.Rasterizationstate.depthBiasEnable;
+		rasterinfo.depthBiasConstantFactor = data.Rasterizationstate.depthBiasConstantFactor;
+		rasterinfo.depthBiasSlopeFactor = data.Rasterizationstate.depthBiasSlopeFactor;
+		rasterinfo.depthBiasClamp = data.Rasterizationstate.depthBiasClamp;
+		rasterinfo.depthClampEnable = data.Rasterizationstate.depthClampEnable;
 
 		//multisampling features like anti-aliasing can be enabled here
 		VkPipelineMultisampleStateCreateInfo multisampling = {};
@@ -152,9 +156,9 @@ namespace Gibo {
 		depthinfo.depthTestEnable = data.DepthStencilstate.depthtestenable;
 		depthinfo.depthWriteEnable = data.DepthStencilstate.depthwriteenable;
 		depthinfo.depthCompareOp = data.DepthStencilstate.depthcompareop;
-		depthinfo.depthBoundsTestEnable = VK_FALSE;
-		depthinfo.minDepthBounds = 0.0f;
-		depthinfo.maxDepthBounds = 1.0f;
+		depthinfo.depthBoundsTestEnable = data.DepthStencilstate.boundsenable;
+		depthinfo.minDepthBounds = data.DepthStencilstate.min_bounds;
+		depthinfo.maxDepthBounds = data.DepthStencilstate.max_bounds;
 		depthinfo.stencilTestEnable = data.DepthStencilstate.stenciltestenable;
 
 		//changes info about the color blending equation
@@ -185,9 +189,9 @@ namespace Gibo {
 		VkPipelineDynamicStateCreateInfo dynamicinfo = {};
 		dynamicinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicinfo.flags = 0;
-		dynamicinfo.dynamicStateCount = 0;
-		//VkDynamicState dstates[1] = { VK_DYNAMIC_STATE_CULL_MODE_EXT };
-		//dynamicinfo.pDynamicStates = dstates;
+		dynamicinfo.dynamicStateCount = 2;
+		VkDynamicState dstates[2] = { VK_DYNAMIC_STATE_VIEWPORT, VK_DYNAMIC_STATE_SCISSOR };
+		dynamicinfo.pDynamicStates = dstates;
 
 		//create pipelinecache if you want to commuincate between pipelines - not supported
 		/*VkPipelineCacheCreateInfo cacheinfo = {};
@@ -225,7 +229,10 @@ namespace Gibo {
 		pipelineInfo.pMultisampleState = &multisampling;
 		pipelineInfo.pDepthStencilState = &depthinfo;
 		pipelineInfo.pColorBlendState = &colorBlending;
-		//pipelineInfo.pDynamicState = &dynamicinfo;
+		if (data.ViewPortstate.dynamicviewport)
+		{
+			pipelineInfo.pDynamicState = &dynamicinfo;
+		}
 		
 		pipelineInfo.layout = current_layout;
 		pipelineInfo.renderPass = renderpass;

@@ -20,6 +20,11 @@ namespace Gibo {
 		VkPolygonMode polygonmode = VK_POLYGON_MODE_FILL;
 		VkCullModeFlags cullmode = VK_CULL_MODE_NONE;
 		VkFrontFace frontface = VK_FRONT_FACE_COUNTER_CLOCKWISE;
+		VkBool32 depthBiasEnable = VK_FALSE;
+		float depthBiasConstantFactor = 0;
+		float depthBiasSlopeFactor = 0;
+		VkBool32 depthClampEnable = VK_FALSE;
+		float depthBiasClamp = 0;
 	};
 	struct MultisamplingState {
 		float minsampleshading = 0.0;
@@ -31,6 +36,9 @@ namespace Gibo {
 		VkBool32 depthtestenable = VK_TRUE;
 		VkBool32 depthwriteenable = VK_TRUE;
 		VkBool32 stenciltestenable = VK_FALSE;
+		VkBool32 boundsenable = VK_FALSE;
+		float min_bounds = 0.0f;
+		float max_bounds = 1.0f;
 	};
 	struct ColorBlendState {
 		float blendconstant0 = 0.0;
@@ -48,6 +56,7 @@ namespace Gibo {
 	struct ViewPortState {
 		VkViewport viewport;
 		VkRect2D scissor;
+		bool dynamicviewport = false;
 	};
 	struct InputAssembly {
 		VkPrimitiveTopology topology = VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST;

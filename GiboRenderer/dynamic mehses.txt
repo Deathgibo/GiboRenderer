@@ -1,0 +1,14 @@
+for dynamic meshes you might have to also change normals. Texture coordinates should be fine as long as you maintain the general shape of the mesh, and its not really defined how you should. For normals if your just deleting stuff it doesn't matter but if you are changing vertex positions you will need to recreate normals through cross product. You could do this on cpu maybe even use multiple threads depending on how much, but a more scalable option is to just recompute normals in the geometry shader because of its high parralelism. 
+
+For the dynamic mesh you would first have to create a grid that corresponds to the 3d object just like texture mapping. This could be hard, and has to be statically computed, but you might be able to use the texture coordiantes as help. 
+
+Once you have the grid you have to store them in a spatial data structure so you can quickly identify its neighbors which is honeslty fine in a double array. Then you need to change vertex data which should be a contiguous array which you set the vbo too, it would be too inneficient to change data, copy it to cpu, then copy to gpu. Pretty much its like other variables you have your cpu sided vbo and ibo, then you keep that host mapped and transfer it over every frame or copy to gpu. Besides this the algorithm should probably store a queue of relevant points so it can quickly go to them, for some algorithms you might need another structure to identifty which point you clicked or shot or something. Then you would change your data. It might be annoying to change ibo too but you have to make sure they are maintained.
+
+
+-fire algorithm-
+1.) get grid data structure
+2.) have a queue of all vertices on fire
+3.) every frame for each vertex in queue set fire to all its neighbors putting them in queue. Then delete vertex. updating ibo.
+4.) Then send that data to gpu
+5.) re-calculate normals in geometry shader (don't have to because vertex positions don't change)
+

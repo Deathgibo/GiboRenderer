@@ -67,8 +67,16 @@ namespace Gibo {
 		Logger::Log("vendorID: ", properties.vendorID, " | ");
 		Logger::Log("depth sample: ", properties.limits.framebufferDepthSampleCounts, " | ");
 		Logger::Log("color sample: ", properties.limits.framebufferColorSampleCounts, " | ");
-		Logger::Log("compute group invocations: ", properties.limits.maxComputeWorkGroupInvocations, " | "); //this is the max local size of x*y*z in shader
-		Logger::Log("compute work group count: ", properties.limits.maxComputeWorkGroupCount[0], "\n"); //this is max local that can be dispatched for each x, y, z
+		Logger::Log("compute max local group count[3]: (", properties.limits.maxComputeWorkGroupSize[0],", ", properties.limits.maxComputeWorkGroupSize[1],", ", 
+			         properties.limits.maxComputeWorkGroupSize[2], ") | "); //this is the max local xyz specified in compute shader
+		Logger::Log("compute group invocations (x*y*z): ", properties.limits.maxComputeWorkGroupInvocations, " | "); //this is the max local size of x*y*z in shader
+		Logger::Log("compute max dispatch workgroup count[3]: (", properties.limits.maxComputeWorkGroupCount[0],", ", properties.limits.maxComputeWorkGroupCount[1],", ", 
+			        properties.limits.maxComputeWorkGroupCount[2], ") | "); //this is max local that can be dispatched for each x, y, z
+		Logger::Log("compute shared memory size: ", properties.limits.maxComputeSharedMemorySize, " | "); 
+		Logger::Log("max pushconstant size: ", properties.limits.maxPushConstantsSize, " | ");
+		Logger::Log("max image array layers: ", properties.limits.maxImageArrayLayers, " | ");
+		Logger::Log("max framebuffer dimensions: (", properties.limits.maxFramebufferWidth, ", ", properties.limits.maxFramebufferHeight, ") | ");
+		Logger::Log("max image dimension: ", properties.limits.maxImageDimension2D, "\n");
 		//theres a lot more properties.limits!
 	}
 

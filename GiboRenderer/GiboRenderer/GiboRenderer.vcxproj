@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Renderer\ShadowAlgorithms.h" />
     <ClInclude Include="src\Renderer\vkcore\QueryManager.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imgui.h" />
@@ -238,6 +239,19 @@
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">../pch.h</PrecompiledHeaderFile>
       <PrecompiledHeaderFile Condition="'$(Configuration)|$(Platform)'=='Release|x64'">../pch.h</PrecompiledHeaderFile>
     </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="Shaders\DepthReduction.comp" />
+    <None Include="Shaders\depth_presspass.frag" />
+    <None Include="Shaders\gui.frag" />
+    <None Include="Shaders\gui.vert" />
+    <None Include="Shaders\shadow.frag" />
+    <None Include="Shaders\shadow.vert" />
+    <None Include="Shaders\shadowpoint.frag" />
+    <None Include="Shaders\shadowpoint.vert" />
+  </ItemGroup>
+  <ItemGroup>
+    <Text Include="Shaders\DepthReductionmulti.comp" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

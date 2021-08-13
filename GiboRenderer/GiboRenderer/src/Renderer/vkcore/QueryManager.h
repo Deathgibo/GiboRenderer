@@ -31,7 +31,7 @@ namespace Gibo {
 	class QueryManager
 	{
 	public:
-		enum QUERY_NAME : int { MAIN_PASS, POST_PROCESS, QUAD, GUI, QUERY_COUNT };
+		enum QUERY_NAME : int { MAIN_PASS, POST_PROCESS, QUAD, GUI, SHADOW, DEPTH, REDUCE, QUERY_COUNT };
 	public:
 
 		QueryManager(VkDevice device, VkPhysicalDevice physicaldevice, int framesinflight);

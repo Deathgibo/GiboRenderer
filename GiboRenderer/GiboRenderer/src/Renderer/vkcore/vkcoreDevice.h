@@ -78,6 +78,8 @@ namespace Gibo {
 		void DestroyBuffer(vkcoreBuffer& vkbuffer);
 		void BindData(VmaAllocation allocation, void* data, size_t size);
 		void BindDataAlwaysMapped(void* mapped_ptr, void* data, size_t size);
+		void* GetBufferData(VmaAllocation allocation, size_t size);
+		void UnMapBuffer(VmaAllocation allocation);
 		VmaAllocationInfo GetAllocationInfo(VmaAllocation allocation);
 
 		VkCommandBuffer beginSingleTimeCommands(POOL_FAMILY familyoperation);

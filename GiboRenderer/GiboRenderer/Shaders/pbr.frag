@@ -1,6 +1,38 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+/* Gaussian just looks like nearest neighbor
+//16
+const float Gauss_Kernel3[3][3] =
+{
+    { 1,2.0,1.0, },
+    { 2.0,4.0,2.0, },
+    { 1.0,2.0,1.0, }
+};
+
+//273
+const float Gauss_Kernel5[5][5] =
+{
+    { 1.0,4.0,7.0,4.0,1.0 },
+    { 4.0,16.0,26.0,16.0,4.0 },
+    { 7.0,26.0,41.0,26.0,7.0 },
+    { 4.0,16.0,26.0,16.0,4.0 },
+    { 1.0,4.0,7.0,4.0,1.0 }
+};
+
+//1003
+const float Gauss_Kernel7[7][7] =
+{
+    { 0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0 },
+    { 0.0, 3.0, 13.0, 22.0, 13.0, 3.0, 0.0 },
+    { 1.0, 13.0, 59.0, 97.0, 59.0, 13.0, 1.0 },
+    { 2.0, 22.0, 97.0, 159.0, 97.0, 22.0, 2.0 },
+    { 1.0, 13.0, 59.0, 97.0, 59.0, 13.0, 1.0 },
+    { 0.0, 3.0, 13.0, 22.0, 13.0, 3.0, 0.0 },
+    { 0.0, 0.0, 1.0, 2.0, 1.0, 0.0, 0.0 }
+};
+*/
+
 #define MAX_LIGHTS 10
 //came from filaments system
 #define MEDIUMP_FLT_MAX    65504.0
@@ -14,11 +46,29 @@ layout(location = 4) in vec3 WorldPos;
 layout(location = 7) in vec3 fragTangent;
 layout(location = 8) in vec3 fragBiTangent;
 layout(location = 9) in mat3 TBN;
+layout(location = 6) in vec4 sunndc;
+layout(location = 1) in vec4 clipspace;
 
 layout(set = 0,binding = 2) uniform ProjVertexBuffer{
 	mat4 view;
 	mat4 proj;
 } pv;
+
+struct shadow_info
+{
+	mat4 view;
+	mat4 proj;
+};
+
+#define MAX_CASCADE_COUNT 6
+#define MAX_POINT_IMAGE 36
+layout(set = 0, binding = 3) uniform SunMatrix{
+  shadow_info info[MAX_CASCADE_COUNT];
+} spv;
+
+layout(set = 0, binding = 5) uniform PointMatrix{
+  shadow_info info[MAX_POINT_IMAGE];
+} ppv;
 
 #define POINT 0.0
 #define SPOT 1.0
@@ -26,6 +76,7 @@ layout(set = 0,binding = 2) uniform ProjVertexBuffer{
 #define FOCUSED_SPOT 3.0
 #define SUN_DIRECTIONAL 4.0
 #define PI 3.141578
+#define SHOW_CASCADES 0
 
 struct light_params {
 	vec4 position;
@@ -38,7 +89,7 @@ struct light_params {
 	float falloff;
 
 	float type;
-	float a1;
+	float cast_shadow;
 	float a2;
 	float a3;
 };
@@ -53,6 +104,16 @@ layout(set = 0, binding = 9) uniform lightcount_struct
   int count;
 } light_count;
 
+layout(set = 0, binding = 0) uniform cascade_splits 
+{
+  vec4 distances[MAX_CASCADE_COUNT - 1]; //cascade count stored in w
+} csm;
+
+layout(set = 0, binding = 11) uniform point_Buffer
+{
+  vec4 info; //x: texture_width y: texture_height z: max point lights w: not used
+  vec4 bias; //x: constant bias y: normal bias z: slope bias w: pcf option
+}pb;
 
 layout(set = 1, binding = 1) uniform MaterialBuffer
 {
@@ -91,6 +152,11 @@ layout(set = 1,binding = 4) uniform sampler2D Metal_Map;
 layout(set = 1,binding = 5) uniform sampler2D Normal_Map;
 layout(set = 0,binding = 6) uniform sampler2D AmbientLUT;
 layout(set = 0,binding = 10) uniform sampler2D TransmittanceLUT;
+//layout(set = 0,binding = 4) uniform sampler2D sunShadowMap;
+//layout(set = 0,binding = 5) uniform sampler2D sunShadowMap2;
+//layout(set = 0,binding = 1) uniform sampler2D sunShadowMap3;
+layout(set = 0, binding = 1) uniform sampler2D sunShadowAtlas;
+layout(set = 0,binding = 4) uniform sampler2D ShadowAtlas;
 
 const float SafetyHeightMargin = 16.f;
 
@@ -354,7 +420,7 @@ vec3 EvaluateLight(light_params light, float roughness, float TdotV, float BdotV
 
 			Fr = AnisotropicSpecularLobe(LdotH, NdotH, TdotV, BdotV, TdotL, BdotL, NdotV, NdotL, H, T, B, specularColor, at, ab);
 
-			Fr = AnisotropicSpecularLobe(LdotH, NdotH, TdotV, BdotV, TdotL, BdotL, NdotV, NdotL, H, T, B, specularColor, at, ab);
+			//Fr = AnisotropicSpecularLobe(LdotH, NdotH, TdotV, BdotV, TdotL, BdotL, NdotV, NdotL, H, T, B, specularColor, at, ab);
 		}
 		else
 		{
@@ -396,6 +462,458 @@ float Remap(float v, float l0, float h0, float ln, float hn)
 	return ln + ((v - l0)*(hn - ln)) / (h0 - l0);
 }
 
+//L is from point facing light
+//slope-bias is proportional to tangent of angle
+//normal-bias is proportional to sin of angle
+vec2 ShadowSlopeNormalAcne(vec3 N, vec3 L)
+{
+	float normalbias = pb.bias.y;
+	float slopebias = pb.bias.z;
+
+	float cos_alpha = clamp(dot(N,L), 0.0, 1.0);
+	float offset_scale_N = sqrt(1 - cos_alpha*cos_alpha); // sin(acos(L·N))
+    float offset_scale_L = offset_scale_N / cos_alpha;    // tan(acos(L·N))
+    return vec2(offset_scale_N * normalbias, min(2, offset_scale_L) * slopebias);
+}
+
+//L is from point facing light
+float DepthBias(vec3 N, vec3 L)
+{
+	float constantbias = pb.bias.x;
+	vec2 normalslope = ShadowSlopeNormalAcne(N, L);
+	float normalbias = normalslope.x;
+	float slopebias = normalslope.y;
+	//depth bias for things that are like 85 degree?
+	//float perpendicularbias = 0.0;
+	//if(clamp(dot(N,L), 0.0, 1.0) <= 0.25)
+	 // perpendicularbias = .010;
+
+	return constantbias + normalbias + slopebias;
+}
+
+float NoFilter(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv)
+{
+	float closest_distance = texture(shadow_map, uv.xy).r;
+	return current_distance - acnebias > closest_distance ? 0.0 : 1.0;
+}
+
+float c_x0 = -1.0;
+float c_x1 =  0.0;
+float c_x2 =  1.0;
+float c_x3 =  2.0;
+float CubicLagrange(float A, float B, float C, float D, float t)
+{
+    return
+        A * 
+        (
+            (t - c_x1) / (c_x0 - c_x1) * 
+            (t - c_x2) / (c_x0 - c_x2) *
+            (t - c_x3) / (c_x0 - c_x3)
+        ) +
+        B * 
+        (
+            (t - c_x0) / (c_x1 - c_x0) * 
+            (t - c_x2) / (c_x1 - c_x2) *
+            (t - c_x3) / (c_x1 - c_x3)
+        ) +
+        C * 
+        (
+            (t - c_x0) / (c_x2 - c_x0) * 
+            (t - c_x1) / (c_x2 - c_x1) *
+            (t - c_x3) / (c_x2 - c_x3)
+        ) +       
+        D * 
+        (
+            (t - c_x0) / (c_x3 - c_x0) * 
+            (t - c_x1) / (c_x3 - c_x1) *
+            (t - c_x2) / (c_x3 - c_x2)
+        );
+}
+
+float CubicHermite (float A, float B, float C, float D, float t)
+{
+	float t2 = t*t;
+    float t3 = t*t*t;
+    float a = -A/2.0 + (3.0*B)/2.0 - (3.0*C)/2.0 + D/2.0;
+    float b = A - (5.0*B)/2.0 + 2.0*C - D / 2.0;
+    float c = -A/2.0 + C/2.0;
+   	float d = B;
+    
+    return a*t3 + b*t2 + c*t + d;
+}
+
+float PCFBiCubicHermit(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+	ivec2 texture_Size = textureSize(shadow_map, 0);
+	vec2 texelsize = 1.0 / textureSize(shadow_map, 0);
+    
+    vec2 frac = fract(uv.xy * vec2(texture_Size));
+    
+    float C00 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(-1 ,-1) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C10 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(0.0, -1)* texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C20 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(1, -1)* texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C30 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(2,-1)* texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+
+    float C01 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(-1, 0.0) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C11 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(0.0, 0.0)* texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C21 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(1, 0.0) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C31 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(2, 0.0) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;    
+
+    float C02 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(-1, 1) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C12 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(0.0, 1) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C22 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(1, 1) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C32 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(2, 1) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;   
+
+    float C03 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(-1, 2) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C13 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(0.0, 2) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C23 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(1, 2) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+    float C33 = current_distance - acnebias > texture(shadow_map, clamp(uv + vec2(2, 2) * texelsize, minbound,maxbound)).r ? 0.0 : 1.0;    
+
+    float CP0X = CubicLagrange(C00, C10, C20, C30, frac.x);
+    float CP1X = CubicLagrange(C01, C11, C21, C31, frac.x);
+    float CP2X = CubicLagrange(C02, C12, C22, C32, frac.x);
+    float CP3X = CubicLagrange(C03, C13, C23, C33, frac.x);
+    
+    return CubicLagrange(CP0X, CP1X, CP2X, CP3X, frac.y);
+}
+
+float PCFBilinear(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+    ivec2 texture_Size = textureSize(shadow_map, 0);
+	vec2 texelsize = 1.0 / textureSize(shadow_map, 0);
+
+	float topleft = current_distance - acnebias > texture(shadow_map, uv.xy).r ? 0.0 : 1.0;
+	float topright = current_distance - acnebias > texture(shadow_map, clamp(uv.xy + vec2(1,0)*texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+	float botleft = current_distance - acnebias > texture(shadow_map, clamp(uv.xy + vec2(0,1)*texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+	float botright = current_distance - acnebias > texture(shadow_map, clamp(uv.xy + vec2(1,1)*texelsize, minbound,maxbound)).r ? 0.0 : 1.0;
+
+	vec2 fxy = fract(uv.xy * vec2(texture_Size));
+
+	float xtop = mix(topleft, topright, fxy.x); 
+	float xbot = mix(botleft, botright, fxy.x);
+
+	return mix(xtop, xbot, fxy.y);
+}
+
+//returns shadow factor
+//KernelTotal is (2*KernelSize + 1)^2
+float PCFNearestNeighbor(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, float KernelSize, float KernelTotal, vec2 minbound, vec2 maxbound)
+{
+	 vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	 float shadow = 0.0;
+	 for(float x = -KernelSize; x <= KernelSize; x++)
+	 {
+		for(float y = -KernelSize; y <= KernelSize; y++)
+		{
+			float closest_distance = texture(shadow_map, clamp(uv.xy + vec2(x,y)*texelsize, minbound, maxbound)).r;
+			shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0;
+		}
+	 }
+	 shadow /= KernelTotal;
+
+	 return shadow;
+}
+
+float PCFNearestNeighborBilinear(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, float KernelSize, float KernelTotal, vec2 minbound, vec2 maxbound)
+{
+	 vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	 float shadow = 0.0;
+	 for(float x = -KernelSize; x <= KernelSize; x++)
+	 {
+		for(float y = -KernelSize; y <= KernelSize; y++)
+		{
+			shadow += PCFBilinear(shadow_map, acnebias, current_distance, clamp(uv.xy + vec2(x,y)*texelsize, minbound, maxbound), minbound, maxbound);
+		}
+	 }
+	 shadow /= KernelTotal;
+
+	 return shadow;
+}
+
+float PCFGauss3(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+	 vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	 float shadow = 0.0;
+	 for(int x = -1; x <= 1; x++)
+	 {
+		for(int y = -1; y <= 1; y++)
+		{
+			float closest_distance = texture(shadow_map, clamp(uv.xy + vec2(x,y)*texelsize, minbound, maxbound)).r;
+			//shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0 * (Gauss_Kernel3[x + 1][y + 1] / 16.0);
+		}
+	 }
+	 //shadow /= 9.0;
+	 return shadow;
+}
+float PCFGauss5(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+	 vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	 float shadow = 0.0;
+	 for(int x = -2; x <= 2; x++)
+	 {
+		for(int y = -2; y <= 2; y++)
+		{
+			float closest_distance = texture(shadow_map, clamp(uv.xy + vec2(x,y)*texelsize, minbound, maxbound)).r;
+			//shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0 * (Gauss_Kernel5[x + 2][y + 2] / 273.0);
+		}
+	 }
+	// shadow /= 25.0;
+	 return shadow;
+}
+float PCFGauss7(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+	 vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	 float shadow = 0.0;
+	 for(int x = -3; x <= 3; x++)
+	 {
+		for(int y = -3; y <= 3; y++)
+		{
+			float closest_distance = texture(shadow_map, clamp(uv.xy + vec2(x,y)*texelsize, minbound, maxbound)).r;
+			//shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0 * (Gauss_Kernel7[x + 3][y + 3] / 1003.0);
+		}
+	 }
+	// shadow /= 49.0;
+	 return shadow;
+}
+
+const vec2 PoissonSamples[16] =
+{
+    vec2(-0.5119625f, -0.4827938f),
+    vec2(-0.2171264f, -0.4768726f),
+    vec2(-0.7552931f, -0.2426507f),
+    vec2(-0.7136765f, -0.4496614f),
+    vec2(-0.5938849f, -0.6895654f),
+    vec2(-0.3148003f, -0.7047654f),
+    vec2(-0.42215f, -0.2024607f),
+    vec2(-0.9466816f, -0.2014508f),
+    vec2(-0.8409063f, -0.03465778f),
+    vec2(-0.6517572f, -0.07476326f),
+    vec2(-0.1041822f, -0.02521214f),
+    vec2(-0.3042712f, -0.02195431f),
+    vec2(-0.5082307f, 0.1079806f),
+    vec2(-0.08429877f, -0.2316298f),
+    vec2(-0.9879128f, 0.1113683f),
+    vec2(-0.3859636f, 0.3363545f),
+};
+
+float Random(vec4 seed4)
+{
+    float dot_product = dot(seed4, vec4(12.9898,78.233,45.164,94.673));
+    return fract(sin(dot_product) * 43758.5453);
+}
+
+//For some reason if I use gl_FragCoords as an input for the "random number generator" then sample from textures its so slow like 40 ms. But if I just calculate gl_FragCoords myself
+//and wing the viewport size it just works and is super fast? That was really slow only in multisampling so I guess its some weird multisampling issue with gl_FragCoords?
+float PCFPoisson(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+    vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	vec2 scaling = texelsize*3; //is how many texels you want the noise to sample from
+	
+	//calculate fragcoord myself since gl_fragcoord is super slow
+	float fragcoordx = ((clipspace.x / clipspace.w)*.5 + .5) * 800;
+	float fragcoordy = ((clipspace.y / clipspace.w)*.5 + .5) * 600;
+	vec3 ss_vec = vec3(fragcoordx,fragcoordy,fragcoordy);
+
+	float shadow = 0.0;
+	for(int i = 0;i<16;i++)
+	{
+		float theta = dot(vec4(ss_vec, i), vec4(12.9898,78.233,45.164,94.673));
+		mat2 randomRotationMatrix = mat2(vec2(cos(theta), -sin(theta)),
+										 vec2(sin(theta), cos(theta)));
+		float closest_distance = texture(shadow_map, clamp(uv.xy + randomRotationMatrix*PoissonSamples[i]*scaling, minbound,maxbound)).r;
+		shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0;
+	}
+	shadow/=16.0;
+
+	return shadow;
+}
+
+float PCFWitness(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv2, vec2 minbound, vec2 maxbound, int size)
+{	
+	ivec2 texture_Size = textureSize(shadow_map, 0);
+	vec2 texelsize = 1.0 / textureSize(shadow_map, 0);
+
+	vec2 uv = uv2.xy * vec2(texture_Size);
+    vec2 shadowMapSizeInv = 1.0 / vec2(texture_Size);
+
+    vec2 base_uv;
+    base_uv.x = floor(uv.x + 0.5);
+    base_uv.y = floor(uv.y + 0.5);
+
+    float s = (uv.x + 0.5 - base_uv.x);
+    float t = (uv.y + 0.5 - base_uv.y);
+
+    base_uv -= vec2(0.5, 0.5);
+    base_uv *= shadowMapSizeInv;
+
+    float sum = 0;
+	if(size == 3)
+	{
+		float uw0 = (3 - 2 * s);
+		float uw1 = (1 + 2 * s);
+
+		float u0 = (2 - s) / uw0 - 1;
+		float u1 = s / uw1 + 1;
+
+		float vw0 = (3 - 2 * t);
+		float vw1 = (1 + 2 * t);
+
+		float v0 = (2 - t) / vw0 - 1;
+		float v1 = t / vw1 + 1;
+
+		sum += uw0 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+		sum += uw1 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+		sum += uw0 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+		sum += uw1 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+
+		return sum * 1.0f / 16;
+	}
+	else if(size == 5)
+	{
+		float uw0 = (4 - 3 * s);
+        float uw1 = 7;
+        float uw2 = (1 + 3 * s);
+
+        float u0 = (3 - 2 * s) / uw0 - 2;
+        float u1 = (3 + s) / uw1;
+        float u2 = s / uw2 + 2;
+
+        float vw0 = (4 - 3 * t);
+        float vw1 = 7;
+        float vw2 = (1 + 3 * t);
+
+        float v0 = (3 - 2 * t) / vw0 - 2;
+        float v1 = (3 + t) / vw1;
+        float v2 = t / vw2 + 2;
+
+        sum += uw0 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+
+        sum += uw0 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+
+        sum += uw0 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+
+        return sum * 1.0f / 144;
+	}
+	else if(size == 7)
+	{
+		float uw0 = (5 * s - 6);
+        float uw1 = (11 * s - 28);
+        float uw2 = -(11 * s + 17);
+        float uw3 = -(5 * s + 1);
+
+        float u0 = (4 * s - 5) / uw0 - 3;
+        float u1 = (4 * s - 16) / uw1 - 1;
+        float u2 = -(7 * s + 5) / uw2 + 1;
+        float u3 = -s / uw3 + 3;
+
+        float vw0 = (5 * t - 6);
+        float vw1 = (11 * t - 28);
+        float vw2 = -(11 * t + 17);
+        float vw3 = -(5 * t + 1);
+
+        float v0 = (4 * t - 5) / vw0 - 3;
+        float v1 = (4 * t - 16) / vw1 - 1;
+        float v2 = -(7 * t + 5) / vw2 + 1;
+        float v3 = -t / vw3 + 3;
+
+        sum += uw0 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw3 * vw0 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u3, v0) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+																		
+        sum += uw0 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw3 * vw1 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u3, v1) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+																			 
+        sum += uw0 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw3 * vw2 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u3, v2) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+																			
+        sum += uw0 * vw3 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u0, v3) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw1 * vw3 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u1, v3) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw2 * vw3 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u2, v3) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+        sum += uw3 * vw3 * (current_distance - acnebias > texture(shadow_map, clamp(base_uv + vec2(u3, v3) * shadowMapSizeInv, minbound, maxbound)).r ? 0.0 : 1.0);
+
+        return sum * 1.0f / 2704;
+	}
+}
+
+//useful for debugging
+//returns shadow factor 1 means no shadow 0 means in shadow
+float PCF(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+  if(pb.bias.w == 0) //None
+  {
+    return NoFilter(shadow_map, acnebias, current_distance, uv);
+  }
+  else if(pb.bias.w == 1) //Nearest Neighbor 3x3
+  {
+    return PCFNearestNeighbor(shadow_map, acnebias, current_distance, uv, 1, 9, minbound, maxbound);
+  }
+  else if(pb.bias.w == 2)//Nearest Neighbor 4x4
+  {
+    return PCFNearestNeighbor(shadow_map, acnebias, current_distance, uv, 1.5, 16, minbound, maxbound);
+  }
+  else if(pb.bias.w == 3)//Nearest Neighbor 5x5
+  {
+    return PCFNearestNeighbor(shadow_map, acnebias, current_distance, uv, 2, 25, minbound, maxbound);
+  }
+  else if(pb.bias.w == 4)//BILINEAR 2x2
+  {
+    return PCFNearestNeighborBilinear(shadow_map, acnebias, current_distance, uv, .5, 4, minbound, maxbound);
+  }
+  else if(pb.bias.w == 5)//BILINEAR 3x3
+  {
+    return PCFNearestNeighborBilinear(shadow_map, acnebias, current_distance, uv, 1, 9, minbound, maxbound);
+  }
+  else if(pb.bias.w == 6)//BILINEAR 4x4
+  {
+    return PCFNearestNeighborBilinear(shadow_map, acnebias, current_distance, uv, 1.5, 16, minbound, maxbound);
+  }
+  else if(pb.bias.w == 7)//BICUBIC 4x4
+  {
+    return PCFBiCubicHermit(shadow_map, acnebias, current_distance, uv, minbound, maxbound);
+  }
+  else if(pb.bias.w == 8)//GAUSS3x3
+  {
+    return PCFGauss3(shadow_map, acnebias, current_distance, uv, minbound, maxbound);
+  }
+  else if(pb.bias.w == 9)//GAUSS5x5
+  {
+    return PCFGauss5(shadow_map, acnebias, current_distance, uv, minbound, maxbound);
+  }
+  else if(pb.bias.w == 10)//GAUSS7x7
+  {
+    return PCFGauss7(shadow_map, acnebias, current_distance, uv, minbound, maxbound);
+  }
+  else if(pb.bias.w == 11)//POISSON
+  {
+    return PCFPoisson(shadow_map, acnebias, current_distance, uv, minbound, maxbound);
+  }
+  else if(pb.bias.w == 12)//WITNESS3
+  {
+    return PCFWitness(shadow_map, acnebias, current_distance, uv, minbound, maxbound, 3);
+  }
+  else if(pb.bias.w == 13)//WITNESS5
+  {
+    return PCFWitness(shadow_map, acnebias, current_distance, uv, minbound, maxbound, 5);
+  }
+  else if(pb.bias.w == 14)//WITNESS7
+  {
+    return PCFWitness(shadow_map, acnebias, current_distance, uv, minbound, maxbound, 7);
+  }
+
+  return 0.0f;
+}
+
 void main() {
 
 	vec3 N = normalize(fragNormal);
@@ -434,7 +952,7 @@ void main() {
 	    the_albedo = alb;
 	}
 	float alpha_value = the_albedo.a;
-	if(Material.albedo.a != 1.0)
+	if(Material.albedo.a != 1.0) //if you specifically set the material albedo it overrides everything
 	{
 		alpha_value = Material.albedo.a;
 	}
@@ -461,9 +979,98 @@ void main() {
 	
 	//only run if ndotL is not 0 for optimization
 	vec3 Color = vec3(0.0, 0.0, 0.0);
+
+	int point_count = 0;
+	int spot_count = 0;
+	int max_point_lights = int(pb.info.z);
+			
+	//get spot/point atlas slot counts its just tatlas texture dimensions divided by each individual spot/point texture dimensions
+	ivec2 atlas_dimensions = textureSize(ShadowAtlas, 0);
+	ivec2 point_dimensions = ivec2(pb.info.x, pb.info.y);
+	int xslot_count = (atlas_dimensions.x) / (point_dimensions.x);
+	int yslot_count = (atlas_dimensions.y) / (point_dimensions.y);
+	vec2 texelsize_point = 1.0 / atlas_dimensions; 
 	for(int i = 0; i < light_count.count; i++)
 	{
-		Color += EvaluateLight(light_data.linfo[i], roughness, TdotV, BdotV, NdotV, T, B, N, V, specularColor, diffuseColor);
+		//first calculate shadow for this light and if its 0 skip lighting
+		//points and spots are held in atlas. All point lights go first including 6 of its sides, then after all points spot lights start.
+		float shadow_factor = 1.0;
+		if(light_data.linfo[i].cast_shadow == 1.0f)
+		{
+			int atlas_index = 0;
+			if(light_data.linfo[i].type == POINT)
+			{
+			  //do cubemap thing [0-5]
+			  vec3 direction = WorldPos - light_data.linfo[i].position.xyz;
+			  float maxComponent = max(max(abs(direction.x), abs(direction.y)), abs(direction.z));
+			  int faceIdx = 0;
+			  if(direction.x == maxComponent)
+			  {
+			  	faceIdx = 0;
+			  }
+			  else if(-direction.x == maxComponent)
+			  {
+			  	faceIdx = 1;
+			  }
+			  else if(direction.y == maxComponent)
+			  {
+			  	faceIdx = 2;
+			  }
+			  else if(-direction.y == maxComponent)
+			  {
+			  	faceIdx = 3;
+			  }
+			  else if(direction.z == maxComponent)
+			  {
+			  	faceIdx = 4;
+			  }
+			  else if(-direction.z == maxComponent)
+			  {
+			  	faceIdx = 5;
+			  }
+
+			  atlas_index = point_count*6 + faceIdx;
+			  point_count = point_count + 1;
+			}
+			else if(light_data.linfo[i].type == SPOT || light_data.linfo[i].type == FOCUSED_SPOT)
+			{
+			  atlas_index = max_point_lights*6 + spot_count;
+			  spot_count = spot_count + 1;
+			}
+
+			vec4 clip_pos = ppv.info[atlas_index].proj * ppv.info[atlas_index].view * vec4(WorldPos,1);
+			clip_pos.y = -clip_pos.y;
+			clip_pos.xyz = clip_pos.xyz / clip_pos.w;
+			vec2 uv = clip_pos.xy*.5 + .5;
+
+			//modulo does not work I don't know why. Piece of shit. functions freak out completely if you have a float and int, or even convert them just gives you junk. floor(6/6) == 0!
+			//round(6)/round(6) == 0! awesome! So I guess I had this bug because I had a float == 6 and an int == 6 and floor broke, division broke, pretty much everything even if I converted
+			//them so cool. So don't ever use mod and careful on floor and ceil to use same base type with no conversions.
+			//I said is this number equal to 3... glsl said yes! But shadows didn't work, then I manually set it to 3 and it worked! So I guess it said this is equal to 3 even though
+			//doing arithmetic with it like 3/3 won't be 1
+			vec2 slot; //[0, n-1]
+			slot.x = atlas_index - (xslot_count * int(atlas_index/xslot_count));
+			slot.y = floor(atlas_index / xslot_count);
+
+			vec2 newuv;
+			float inv_slotx = 1/float(xslot_count);
+			float inv_sloty = 1/float(yslot_count);
+			newuv.x = slot.x * inv_slotx + uv.x*inv_slotx;
+			newuv.y = slot.y * inv_sloty + uv.y*inv_sloty;
+			if(clip_pos.z >= 0 && clip_pos.z <= 1.0f && clip_pos.x >= -1 && clip_pos.x <= 1 && clip_pos.y >= -1 && clip_pos.y <= 1)
+			{
+			  float acnebias = DepthBias(N, normalize(light_data.linfo[i].position.xyz - WorldPos));
+			  vec2 minbound = vec2(slot.x*inv_slotx, slot.y*inv_sloty);
+			  vec2 maxbound = vec2((minbound.x+inv_slotx) - texelsize_point.x, (minbound.y+inv_sloty) - texelsize_point.y);
+			  
+			  shadow_factor = PCFPoisson(ShadowAtlas, acnebias, clip_pos.z, newuv, minbound, maxbound);
+			}
+		}
+
+		if(shadow_factor != 0.0)
+		{
+		    Color += EvaluateLight(light_data.linfo[i], roughness, TdotV, BdotV, NdotV, T, B, N, V, specularColor, diffuseColor) * shadow_factor;
+		}
 	}
 
 	//SUNLIGHT
@@ -487,7 +1094,61 @@ void main() {
 	vec3 suntransmittance = texture(TransmittanceLUT, uv).xyz;
 
 	SunColor *= suntransmittance;
-	SunColor = max(SunColor, 0.0);
+
+	//shadows - *to make cleaner just add a vector for all stuff then have an index
+	float sun_shadow_factor = 1.0;
+	float cam_depth = abs((pv.view * vec4(WorldPos, 1)).z);
+
+	//calculate cascade index
+	int CASCADE_COUNT = int(csm.distances[0].w);
+	int atlas_index = 0;
+	for(int i = 0; i <CASCADE_COUNT;i++)
+	{
+		if(cam_depth < csm.distances[i].x)
+		{
+		  atlas_index = i;
+		  break;
+		}
+		atlas_index = i;
+	}
+
+	vec4 clip_pos = spv.info[atlas_index].proj * spv.info[atlas_index].view * vec4(WorldPos,1);
+	clip_pos.y = -clip_pos.y;
+	clip_pos.xyz = clip_pos.xyz / clip_pos.w;
+	vec2 sunuv = clip_pos.xy*.5 + .5;
+	
+	//atlas mapping  map percentage of sunuv to one of the atlas squares. Start at the topleft corner of one of the atlases, then just add the uv divided by how many times we divided the space
+	vec2 slot;   //[0,n-1]
+	slot.x = mod(atlas_index, 2); //0 or 1
+	slot.y = floor(atlas_index / 2.0f);
+	xslot_count = 2;
+	yslot_count = int(max(ceil(CASCADE_COUNT / 2.0f), 1.0)); //1,2,3
+
+	vec2 newsunuv;
+	float inv_slotx = 1/float(xslot_count);
+	float inv_sloty = 1/float(yslot_count);
+	newsunuv.x = slot.x * inv_slotx + sunuv.x*inv_slotx;
+	newsunuv.y = slot.y * inv_sloty + sunuv.y*inv_sloty;
+
+	vec2 texelsize_sun = 1.0 / textureSize(sunShadowAtlas,0); 
+
+	//we need to clamp to border because were using atlas and don't want to bleed to other samples. So min is current atlas topleftcorner and max is atlas bottomright minus a texel
+	vec2 minbound = vec2(slot.x*inv_slotx, slot.y*inv_sloty);
+	vec2 maxbound = vec2((minbound.x+inv_slotx) - texelsize_sun.x, (minbound.y+inv_sloty) - texelsize_sun.y);
+	float acnebias = DepthBias(N, -SunLight.direction.xyz);
+	sun_shadow_factor = PCFNearestNeighbor(sunShadowAtlas, acnebias, clip_pos.z, newsunuv, 1, 9, minbound, maxbound);
+
+	if(SHOW_CASCADES == 1)
+	{
+		if(atlas_index == 0)
+		  Color+=vec3(.2,0,0);
+		else if(atlas_index == 1)
+		 Color+=vec3(0,.2,0);
+		else
+		 Color+=vec3(0,0,.2);
+	}
+
+	SunColor = max(SunColor, 0.0) * sun_shadow_factor;
 	Color += SunColor;
 
 	//Ambient Color
@@ -507,8 +1168,4 @@ void main() {
    Color = vec3(1.0) - exp(-Color * exposure);
 
    outColor = vec4(Color, alpha_value);
-  // outColor = vec4(1,0,0,1);
-  // outColor = vec4(SunColor, alpha_value);
-  // outColor = light_data.linfo[0].color;
-  // outColor = vec4(Color, 1);
 }

@@ -49,7 +49,9 @@ namespace Gibo {
 				static_info.queueFamilyIndex = family_indices[i];
 				dynamic_info.queueFamilyIndex = family_indices[i];
 				helper_info.queueFamilyIndex = family_indices[i];
-
+				char a;
+				std::cin >> a;
+				std::cin >> a;
 				VULKAN_CHECK(vkCreateCommandPool(deviceref, &static_info, nullptr, &Cache[0][i]), "creating static command pool");
 				VULKAN_CHECK(vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[1][i]), "creating dynamic command pool");
 				VULKAN_CHECK(vkCreateCommandPool(deviceref, &helper_info, nullptr, &Cache[2][i]), "creating helper command pool");

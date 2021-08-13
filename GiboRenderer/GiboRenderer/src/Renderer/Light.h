@@ -27,16 +27,25 @@ namespace Gibo {
 			float falloff; //for pointlight and spotlight
 
 			float type;
-			float a1;
+			float cast_shadow = 0.0f;
 			float a2;
 			float a3;
 		};
 
 		enum class light_type : uint8_t { POINT, SPOT, DIRECTIONAL, FOCUSED_SPOT };
+		static float convert_type_to_float(light_type val)
+		{
+			return (float)val;
+		}
+		static light_type convert_float_to_type(float val)
+		{
+			uint8_t tmp = (uint8_t)val;
+			return (light_type)tmp;
+		}
 	public:
 		Light() : lightmanager_id(-1){};
-		Light(light_type val) { info.type = convert_type_to_float(val); }
-		Light(lightparams params) : info(params) {}
+		Light(light_type val) : lightmanager_id(-1) { info.type = convert_type_to_float(val); }
+		Light(lightparams params) : info(params), lightmanager_id(-1) {}
 		~Light() { if (isSubmitted()) { Logger::LogError("You need to remove light from manager before deleting. enjoy your corrupted pixels!\n"); } }
 
 		//Set for each parameter 
@@ -48,6 +57,7 @@ namespace Gibo {
 		Light& setOuterAngle(float val) { info.outerangle = glm::radians(val); return *this; };
 		Light& setFallOff(float val) { info.falloff = val;     return *this; };
 		Light& setType(light_type val) { info.type = convert_type_to_float(val);  return *this; };
+		Light& setCastShadow(bool val) { info.cast_shadow = (val) ? 1.0f : 0.0f;  return *this; };
 
 		void Move(glm::vec3 val) { info.position += glm::vec4(val.x, val.y, val.z, 0.0); }
 
@@ -56,10 +66,6 @@ namespace Gibo {
 		lightparams* getParamsPtr() { return &info; }
 		inline bool isSubmitted() const { return (lightmanager_id == -1) ? false : true; }
 	private:
-		float convert_type_to_float(light_type val)
-		{
-			return (float)val;
-		}
 	private:
 		lightparams info;
 		int lightmanager_id; //this is changed in the lightmanager class. It wil lbe -1 if its removed, and some other number if its in

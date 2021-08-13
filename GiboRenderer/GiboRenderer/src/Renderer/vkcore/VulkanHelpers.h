@@ -55,7 +55,7 @@ namespace Gibo {
 		return view;
 	}
 
-	static VkFramebuffer CreateFrameBuffer(VkDevice device, uint32_t width, uint32_t height, VkRenderPass renderpass, VkImageView* views, uint32_t view_count)
+	static VkFramebuffer CreateFrameBuffer(VkDevice device, uint32_t width, uint32_t height, VkRenderPass renderpass, VkImageView* views, uint32_t view_count, uint32_t layers = 1)
 	{
 		VkFramebuffer framebuffer;
 		VkFramebufferCreateInfo framebufferInfo = {};
@@ -67,7 +67,7 @@ namespace Gibo {
 		framebufferInfo.pAttachments = views;
 		framebufferInfo.width = width;
 		framebufferInfo.height = height;
-		framebufferInfo.layers = 1;
+		framebufferInfo.layers = layers;
 
 		VULKAN_CHECK(vkCreateFramebuffer(device, &framebufferInfo, nullptr, &framebuffer), "create framebuffer");
 		return framebuffer;
@@ -263,9 +263,14 @@ namespace Gibo {
 	//and the image we are copying into has VK_BUFFER_USAGE_TRANSFER_DST_BIT and VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
 	//TODO - support multiple mip level/array layer copying
 	static void CopyImageToImage(vkcoreDevice& device, VkImage srcimage, VkImage dstimage, VkImageLayout srclayout, VkImageLayout dstlayoutcurrent, VkImageLayout dstlayoutfinaldesired,
-		VkAccessFlags dstimageaccess, VkPipelineStageFlags dstpipelinestage, uint32_t width, uint32_t height, VkImageAspectFlags dstaspectflags, uint32_t dstmiplevels, int dstlayercount)
+		VkAccessFlags dstimageaccess, VkPipelineStageFlags dstpipelinestage, uint32_t width, uint32_t height, VkImageAspectFlags dstaspectflags, uint32_t dstmiplevels, int dstlayercount,
+		VkOffset3D dstoffset, VkOffset3D srcoffset, VkCommandBuffer incmdbuffer = VK_NULL_HANDLE)
 	{
-		VkCommandBuffer commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+		VkCommandBuffer commandBuffer = incmdbuffer;
+		if (incmdbuffer == VK_NULL_HANDLE)
+		{
+			commandBuffer = device.beginSingleTimeCommands(POOL_FAMILY::TRANSFER);
+		}
 
 		VkImageMemoryBarrier imagebarrier = {};
 		imagebarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -285,16 +290,18 @@ namespace Gibo {
 		VkPipelineStageFlags dststage = VK_PIPELINE_STAGE_TRANSFER_BIT;
 
 		VkImageCopy region = {};
-		region.dstOffset = { 0, 0, 0 };
-		region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		region.dstOffset = dstoffset;
+		region.dstSubresource.aspectMask = dstaspectflags;
 		region.dstSubresource.mipLevel = 0;
 		region.dstSubresource.baseArrayLayer = 0;
 		region.dstSubresource.layerCount = 1;
-		region.srcOffset = { 0, 0, 0 };
-		region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+
+		region.srcOffset = srcoffset;
+		region.srcSubresource.aspectMask = dstaspectflags;
 		region.srcSubresource.mipLevel = 0;
 		region.srcSubresource.baseArrayLayer = 0;
 		region.srcSubresource.layerCount = 1;
+
 		region.extent = {
 			width,
 			height,
@@ -314,7 +321,10 @@ namespace Gibo {
 
 		vkCmdPipelineBarrier(commandBuffer, srcstage, dststage, 0, 0, nullptr, 0, nullptr, 1, &imagebarrier);
 
-		device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
+		if (incmdbuffer == VK_NULL_HANDLE)
+		{
+			device.submitSingleTimeCommands(commandBuffer, POOL_FAMILY::TRANSFER);
+		}
 	}
 
 	//make sure image is supported with VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT

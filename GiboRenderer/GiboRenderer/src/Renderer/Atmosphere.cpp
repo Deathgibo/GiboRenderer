@@ -24,7 +24,7 @@ namespace Gibo {
 		shader_info.atmosphere_height = ATM_TOP_HEIGHT;
 		shader_info.earth_center = glm::vec4(f3EarthCentre, 1);
 		shader_info.earth_radius = EARTH_RADIUS;
-		shader_info.lightdir = glm::normalize(glm::vec4(0, -1, 0, 1));
+		shader_info.lightdir = glm::vec4(0, -1, 0, 1);
 
 		float farplanez = 10000;
 		float halfx = tan(glm::radians(fov / 2.0)) * farplanez * (proj_extent.width / proj_extent.height);

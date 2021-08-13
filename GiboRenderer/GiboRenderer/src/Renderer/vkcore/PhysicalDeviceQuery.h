@@ -64,6 +64,7 @@ namespace Gibo {
 		{
 			VkPhysicalDeviceProperties device_properties;
 			vkGetPhysicalDeviceProperties(physicaldevice, &device_properties);
+
 			return device_properties.limits;
 		}
 

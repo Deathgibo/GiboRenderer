@@ -63,7 +63,7 @@ namespace Gibo {
 		ShaderProgram& operator=(ShaderProgram&&) = delete;
 
 		bool Create(VkDevice device, uint32_t framesinflight, shadersinfo* shaderinformation, uint32_t shaderinfo_count, descriptorinfo* globaldescriptors, uint32_t global_count, 
-			        descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed);
+			        descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed, uint32_t maxglobaldescriptorallowed = 1);
 		void CleanUp();
 
 		void SetGlobalDescriptor(std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes, std::vector<std::vector<VkImageView>>& imageviews,
@@ -77,15 +77,19 @@ namespace Gibo {
 
 		VkDescriptorSetLayout& GetLocalLayout() { return LocalLayout; }
 		VkDescriptorSetLayout& GetGlobalLayout() { return GlobalLayout; }
+		VkDescriptorPool GetGlobalPool() { return GlobalPool; }
+		std::vector<descriptorinfo> GetGlobalDescriptorInfo() { return GlobalDescriptorInfo; }
 		std::vector<VkShaderModule> GetShaderModules() { return ShaderModules; }
 		std::vector<VkPipelineShaderStageCreateInfo> GetShaderStageInfo() { return ShaderStageInfo; }
 		VkDescriptorSet& GetGlobalDescriptor(int frameinflight) { return GlobalSet[frameinflight]; }
 		VkDescriptorSet& GetLocalDescriptor(uint32_t descriptor_id, int frameinflight) { return DescriptorSets[descriptor_id][frameinflight]; }
+		int GetLocalDescriptorSize() { return DescriptorSets.size(); }
 		std::vector<VkPushConstantRange>& GetPushRanges() { return Push_ConstantRanges; }
-	private:
-		std::vector<char> readFile(const std::string& filename) const;
+
 		void UpdateDescriptorSet(VkDescriptorSet descriptorset, const std::vector<descriptorinfo>& descriptorinfo, vkcoreBuffer* uniformbuffers, uint64_t* buffersizes, VkImageView* imageviews, VkSampler* samplers, VkBufferView* bufferviews);
 		bool AllocateSets(VkDescriptorSet* sets, uint32_t sets_size, VkDescriptorPool pool, VkDescriptorSetLayout layout);
+	private:
+		std::vector<char> readFile(const std::string& filename) const;
 	private:
 		//descriptors
 		std::unordered_map<uint32_t, std::vector<VkDescriptorSet>> DescriptorSets; //an id maps to a descriptor set which has one for each frame in flight

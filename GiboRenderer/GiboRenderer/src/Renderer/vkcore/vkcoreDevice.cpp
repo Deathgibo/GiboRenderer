@@ -289,6 +289,7 @@ namespace Gibo {
 		deviceFeatures.sampleRateShading = VK_TRUE;
 		deviceFeatures.samplerAnisotropy = VK_TRUE;
 		deviceFeatures.fragmentStoresAndAtomics = VK_TRUE;
+		deviceFeatures.imageCubeArray = VK_TRUE;
 
 		if (features.geometryShader == FALSE) { Logger::LogWarning("device doesn't have geometryShader"); }
 		if (features.tessellationShader == FALSE) { Logger::LogWarning("device doesn't have tessellationShader"); }
@@ -296,6 +297,7 @@ namespace Gibo {
 		if (features.sampleRateShading == FALSE) { Logger::LogWarning("device doesn't have sampleRateShading"); }
 		if (features.samplerAnisotropy == FALSE) { Logger::LogWarning("device doesn't have samplerAnisotropy"); }
 		if (features.fragmentStoresAndAtomics == FALSE) { Logger::LogWarning("device doesn't have fragmentStoresAndAtomics"); }
+		if (features.imageCubeArray == FALSE) { Logger::LogWarning("device doesn't have imageCubeArray"); }
 
 		//pick which physical device extension we need to support
 		const std::vector<const char*> deviceExtensions = {
@@ -431,7 +433,7 @@ namespace Gibo {
 		Logger::Log("desired format: ", desired_format, " format chosen: ", thesurfaceformat.format, " desired color space: ", desired_colorspace, " color space chosen: ", thesurfaceformat.colorSpace, "\n");
 
 		//Pick present mode is just an enum about how the swap chain handles swapping the images, it can be vsync, triple buffer, single, etc
-		VkPresentModeKHR desired_present_mode = VK_PRESENT_MODE_IMMEDIATE_KHR; //VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR
+		VkPresentModeKHR desired_present_mode = VK_PRESENT_MODE_MAILBOX_KHR; //VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR
 		VkPresentModeKHR thesurfacepresentmode;
 		for (int i = 0; i < presentmodes.size(); i++)
 		{
@@ -483,7 +485,7 @@ namespace Gibo {
 		Logger::Log("image count: ", minimum_image_count, "\n");
 
 		//Pick desired image usage. COLOR_ATTACMENT has to be here. Adding more can hurt performance so try and use only when needed
-		VkImageUsageFlags desired_image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_STORAGE_BIT;// | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; //VK_IMAGE_USAGE_TRANSFER_DST_BIT for post-processing
+		VkImageUsageFlags desired_image_usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;// | VK_IMAGE_USAGE_TRANSFER_SRC_BIT; //VK_IMAGE_USAGE_TRANSFER_DST_BIT for post-processing
 		VkImageUsageFlags image_usage = 0;
 
 		if (desired_image_usage & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT && capabilities.supportedUsageFlags & VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT)
@@ -504,7 +506,7 @@ namespace Gibo {
 		}
 		else
 		{
-			Logger::LogError("swap chain format doesn't support storage bit\n");
+			//Logger::LogError("swap chain format doesn't support storage bit\n");
 		}
 
 		//Pick desired transform
@@ -657,6 +659,18 @@ namespace Gibo {
 		}
 	}
 
+	void* vkcoreDevice::GetBufferData(VmaAllocation allocation, size_t size)
+	{
+		void* mappedData;
+		VULKAN_CHECK(vmaMapMemory(Allocator, allocation, &mappedData), "mapping memory");
+		vmaUnmapMemory(Allocator, allocation);
+		return mappedData;
+	}
+	void vkcoreDevice::UnMapBuffer(VmaAllocation allocation)
+	{
+		vmaUnmapMemory(Allocator, allocation);
+	}
+
 	VmaAllocationInfo vkcoreDevice::GetAllocationInfo(VmaAllocation allocation)
 	{
 		VmaAllocationInfo info;
@@ -667,9 +681,20 @@ namespace Gibo {
 	bool vkcoreDevice::CreateImage(VkImageType image_type, VkFormat Format, VkImageUsageFlags usage, VkSampleCountFlagBits samplecount, uint32_t width, uint32_t height, uint32_t depth,
 		uint32_t mip_levels, uint32_t array_layers, VmaMemoryUsage memusage, VmaAllocationCreateFlags mapped_bit_flag, vkcoreImage& vkimage)
 	{
+		//check to see if image is supported
+#ifdef _DEBUG
+		VkImageFormatProperties d;
+		if (vkGetPhysicalDeviceImageFormatProperties(GetPhysicalDevice(), Format, image_type, VK_IMAGE_TILING_OPTIMAL, usage,
+			0, &d) == VK_ERROR_FORMAT_NOT_SUPPORTED)
+		{
+			Logger::LogError("Image not supported by physical device!\n");
+		}
+#endif 
+
+
 		//fill imagecreateinfo, fill vmamemoryusage, create image
 		VkImageCreateInfo imageInfo = {};
-		imageInfo.flags = (array_layers == 6) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
+		imageInfo.flags = (array_layers % 6 == 0) ? VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT : 0;
 		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		imageInfo.imageType = image_type;
 		imageInfo.extent.width = width;

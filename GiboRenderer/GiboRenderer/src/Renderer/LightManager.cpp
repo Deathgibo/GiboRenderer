@@ -20,8 +20,13 @@ namespace Gibo {
 										VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT);
 		}
 
-		deviceref.CreateBuffer(sizeof(Light::lightparams) * MAX_LIGHTS, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, light_stagingbuffer);
-		deviceref.CreateBuffer(sizeof(int), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, lightcounter_stagingbuffer);
+		light_stagingbuffer.resize(framesinflight);
+		lightcounter_stagingbuffer.resize(framesinflight);
+		for (int i = 0; i < framesinflight; i++)
+		{
+			deviceref.CreateBuffer(sizeof(Light::lightparams) * MAX_LIGHTS, VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, light_stagingbuffer[i]);
+			deviceref.CreateBuffer(sizeof(int), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VMA_MEMORY_USAGE_CPU_ONLY, 0, lightcounter_stagingbuffer[i]);
+		}
 
 		gpumemory_usage = sizeof(Light::lightparams) * MAX_LIGHTS * framesinflight + sizeof(int) * framesinflight + sizeof(Light::lightparams) * MAX_LIGHTS + sizeof(int);
 	}
@@ -41,16 +46,18 @@ namespace Gibo {
 		{
 			deviceref.DestroyBuffer(lightcounter_buffer[i]);
 		}
-
-		deviceref.DestroyBuffer(light_stagingbuffer);
-		deviceref.DestroyBuffer(lightcounter_stagingbuffer);
+		for (int i = 0; i < light_stagingbuffer.size(); i++)
+		{
+			deviceref.DestroyBuffer(light_stagingbuffer[i]);
+			deviceref.DestroyBuffer(lightcounter_stagingbuffer[i]);
+		}
 	}
 
 	void LightManager::UpdateBuffers(int framecount)
 	{
 		//we have a bunch of pointers on the map. Go through the map and create a contiguous array of memory from the pointers. Order doesn't matter for lights.
 		void* mappedData;
-		VULKAN_CHECK(vmaMapMemory(deviceref.GetAllocator(), light_stagingbuffer.allocation, &mappedData), "mapping memory");
+		VULKAN_CHECK(vmaMapMemory(deviceref.GetAllocator(), light_stagingbuffer[framecount].allocation, &mappedData), "mapping memory");
 		int counter = 0;
 		for (std::unordered_map<int, Light::lightparams*>::iterator it = light_map.begin(); it != light_map.end(); ++it)
 		{
@@ -58,13 +65,13 @@ namespace Gibo {
 			memcpy(static_cast<Light::lightparams*>(mappedData) + counter, ptr, sizeof(Light::lightparams));
 			counter++;
 		}
-		vmaUnmapMemory(deviceref.GetAllocator(), light_stagingbuffer.allocation);
+		vmaUnmapMemory(deviceref.GetAllocator(), light_stagingbuffer[framecount].allocation);
 
-		CopyBufferToBuffer(deviceref, light_stagingbuffer.buffer, light_buffer[framecount].buffer, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, sizeof(Light::lightparams) * MAX_LIGHTS);
+		CopyBufferToBuffer(deviceref, light_stagingbuffer[framecount].buffer, light_buffer[framecount].buffer, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, sizeof(Light::lightparams) * counter);//MAX_LIGHTS
 
 		int lightcount = light_map.size();
-		deviceref.BindData(lightcounter_stagingbuffer.allocation, &lightcount, sizeof(int));
-		CopyBufferToBuffer(deviceref, lightcounter_stagingbuffer.buffer, lightcounter_buffer[framecount].buffer, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, sizeof(int));
+		deviceref.BindData(lightcounter_stagingbuffer[framecount].allocation, &lightcount, sizeof(int));
+		CopyBufferToBuffer(deviceref, lightcounter_stagingbuffer[framecount].buffer, lightcounter_buffer[framecount].buffer, VK_ACCESS_SHADER_READ_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0, 0, sizeof(int));
 	}
 
 	void LightManager::Update(int framecount)
@@ -72,13 +79,18 @@ namespace Gibo {
 		if (needs_updated)
 		{
 			UpdateBuffers(framecount);
-			
+
 			frames_updated++;
 			if (frames_updated >= light_buffer.size())
 			{
 				frames_updated = 0;
 				needs_updated = false;
 			}
+		}
+
+		if (shadow_casts_changed)
+		{
+			shadow_casts_changed = false;
 		}
 	}
 
@@ -100,10 +112,30 @@ namespace Gibo {
 #endif
 		id_count++;
 		NotifyUpdate();
+
+		//see if we want it to cast shadows
+		if (light.getParams().cast_shadow == 1.0f)
+		{
+			shadow_casts.push_back(light.lightmanager_id);
+			shadow_casts_changed = true;
+		}
 	}
 
 	void LightManager::RemoveLight(Light& light)
 	{
+		//see if it was casting shadows and remove. 
+		if (light.getParams().cast_shadow == 1.0f)
+		{
+			shadow_casts_changed = true;
+			for (int i = 0; i < shadow_casts.size(); i++)
+			{
+				if (shadow_casts[i] == light.lightmanager_id)
+				{
+					shadow_casts.erase(shadow_casts.begin() + i);
+				}
+			}
+		}
+
 		if (light_map.count(light.lightmanager_id) != 0)
 		{
 			light_map.erase(light.lightmanager_id);
@@ -115,6 +147,11 @@ namespace Gibo {
 #endif
 		}
 		light.lightmanager_id = -1;
+		NotifyUpdate();
+	}
+
+	void LightManager::SyncGPUBuffer()
+	{
 		NotifyUpdate();
 	}
 

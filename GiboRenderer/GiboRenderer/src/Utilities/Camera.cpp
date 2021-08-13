@@ -35,7 +35,7 @@ namespace Gibo {
 
 	void Camera::handlekeyinput(bool* keys, float fps)
 	{
-		movespeed = 7.0f / fps * 5;
+		movespeed = 7.0f / fps * 2;
 
 		if (keys[GLFW_KEY_W])
 		{

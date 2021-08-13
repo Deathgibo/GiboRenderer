@@ -1,0 +1,46 @@
+
+
+slope-scale - proportional to tangent of N and L (pointtowardslight)
+constant - just constant
+normal - proportional to sin of N and L
+receiver plane depth bias - jacobian equation
+tune them all
+
+
+let me make room where I can see point shadows from every direction and seams
+objects against a wall for spotlight
+spotlight/point on fence/ on stairsd
+move spotlight/pointlight
+
+
+
+depth press pass / implemented in main render pass / made work with transparency
+retrieve min max when im done and use that in logarithmic scheme
+made a shadow scene
+implement pancake fix for really good z precision and got rid of a lot of peter panning
+fixed stupid cull bug was wrong aspect ratio
+update cascaded maps, change variables, cleaned up, atlas
+implemented spot and point lights for the most part and got an atlas for them and everything
+testes spot and point lights good
+implemented stable cascade though it didn't seem to work
+implemented biases and tested out
+(filtering)
+(test/cleanup code/optimize a little more/ comment)
+
+issues: fence at glancing angle is super aliased, if near plane is too far you get peter panning (fixed this with pancake), stairs are popping (fixed with pancaking), shimmering,
+clipping on x and y frustrum (fixed wrong aspect)
+
+variables: sdsm on, sun distance, padding for aabb shadow box, change to 12
+
+create test scene for shadows, move objects, move point/spot lights
+get best near/far/fov for point and spot lights and maybe fix pbr attenuation. Implement sampling from cube map. Fix light bugs. 
+work on stabilizing, try radius technique/clamping texels/etc, reducing shimmering artifacts
+
+atlas optimization
+pcf filterling: nearest, billinear, cubic, poisson, cascade specific, cube map specific 
+shadow acne equations
+anything else, look at other code
+test and done
+
+omnidirectional and spot lights with atlasing and pcf 
+make code clean and easy to use shadows, lights can toggle between shadow or not there can only be a max amount

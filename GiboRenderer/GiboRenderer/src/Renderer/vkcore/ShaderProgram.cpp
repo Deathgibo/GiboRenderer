@@ -28,7 +28,7 @@ namespace Gibo {
 	}
 
 	bool ShaderProgram::Create(VkDevice device, uint32_t framesinflight, shadersinfo* shaderinformation, uint32_t shaderinfo_count, descriptorinfo* globaldescriptors, uint32_t global_count,
-			    descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed)
+			    descriptorinfo* localdescriptors, uint32_t local_count, pushconstantinfo* pushinfo, uint32_t push_count, uint32_t maxlocaldescriptorsallowed, uint32_t maxglobaldescriptorallowed)
 	{
 		Logger::LogInfo("Creating shader program: ", shaderinformation->name, "\n");
 		deviceref = device;
@@ -120,7 +120,7 @@ namespace Gibo {
 		//if you need to you can flush out the whole pool 
 		//A simple way if you run out of space, you could hold an array of these and create a new pool when you need too.
 		uint32_t localpool_maxSets = (maxlocaldescriptorsallowed * framesinflight) + 1;//maximum number of objects we can allocate for this shader
-		uint32_t globalpool_maxsets = 1 * framesinflight;//global just needs 1 per frame in flight
+		uint32_t globalpool_maxsets = (maxglobaldescriptorallowed * framesinflight) + 1;//global just needs 1 per frame in flight, but you can add more if you want
 
 		std::vector<VkDescriptorPoolSize> GlobalpoolSizes;
 		for (int i = 0; i < global_count; i++)
@@ -248,6 +248,12 @@ namespace Gibo {
 	void ShaderProgram::AddLocalDescriptor(uint32_t descriptor_id, std::vector<std::vector<vkcoreBuffer>>& uniformbuffers, std::vector<std::vector<uint64_t>>& buffersizes,
 		                               std::vector<std::vector<VkImageView>>& imageviews, std::vector<std::vector<VkSampler>>& samplers, std::vector<std::vector<VkBufferView>>& bufferviews)
 	{
+#ifdef _DEBUG
+		if (DescriptorSets.count(descriptor_id) != 0)
+		{
+			Logger::LogError("adding local descriptor with id that already exists\n");
+		}
+#endif
 		//create and allocate n descriptor sets, store them in our data structure
 		std::vector<VkDescriptorSet>& sets = DescriptorSets[descriptor_id];
 		sets.resize(mframesinflight);
@@ -264,10 +270,20 @@ namespace Gibo {
 	
 	void ShaderProgram::RemoveLocalDescriptor(uint32_t descriptor_id)
 	{
+#ifdef _DEBUG
+		if (DescriptorSets.count(descriptor_id) == 0)
+		{
+			Logger::LogError("Removing local descriptor that doesn't exist\n");
+		}
+#endif
 		//free descriptors from the pool, remove from map, and free id
 		std::vector<VkDescriptorSet>& set = DescriptorSets[descriptor_id];
 		
-		vkFreeDescriptorSets(deviceref, LocalPool, set.size(), set.data());
+		for (int i = 0; i < set.size(); i++)
+		{
+			vkFreeDescriptorSets(deviceref, LocalPool, 1, &set[i]);
+		}
+		//vkFreeDescriptorSets(deviceref, LocalPool, set.size(), set.data());
 
 		DescriptorSets.erase(descriptor_id);
 	}

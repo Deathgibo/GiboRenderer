@@ -50,6 +50,7 @@ namespace Gibo {
 
 		void SwapChainRecreate(VkExtent2D pipeline_extent, VkExtent2D proj_extent, float fov, VkRenderPass renderpass, VkSampleCountFlagBits sample_count);
 
+		glm::vec3 GetSunDirection() { return shader_info.lightdir; }
 		VkImageView GetAmbientView() { return ambientview; }
 		VkImageView GetTransmittanceView() { return transmittanceview; }
 		VkSampler GetSampler() { return atmospheresampler; }

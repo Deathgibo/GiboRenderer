@@ -20,6 +20,9 @@ namespace Gibo {
 	
 	deletion is handled based off frames in flight. You need to set a bit to destroyed on the renderobject so the things looping through data structures know they are gone while things using
 	them still have the memory. Then after k frames in flight you can finally delete it from the data structure.
+
+	TODO- maybe just hold all the objects in a conitguous array as the source data, then everything grabs from that so if we need to loop trhough everything contiguously its in the arry.
+	Check if looping through pointers is fine that point to contiguous memory
 	*/
 
 	class RenderObjectManager

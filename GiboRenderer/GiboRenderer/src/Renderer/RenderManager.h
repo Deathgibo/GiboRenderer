@@ -51,6 +51,14 @@ namespace Gibo {
 
 			descriptorgraveinfo(uint32_t id_, int frame_count_) : id(id_), frame_count(frame_count_) {};
 		};
+
+		struct reduce_struct {
+			glm::mat4 proj;
+			float n;
+			float f;
+			float a;
+			float b;
+		};
 	public:
 		RenderManager();
 		~RenderManager();
@@ -101,10 +109,45 @@ namespace Gibo {
 		void CleanUpPBR();
 		void PBRdeleteimagedata();
 		void PBRcreateimagedata();
+		void RecordPBRCmd(int current_frame);
+
+		void CreateDepth();
+		void CleanUpDepth();
+		void Depthdeleteimagedata();
+		void Depthcreateimagedata();
+		void createDepthfinal();
+		void RecordDepthCmd(int current_frame);
+		
+		void CreateReduce();
+		void CleanUpReduce();
+		void Reducecreateimagedata();
+		void Reducedeleteimagedata();
+		void createReducefinal();
+		void UpdateReduceProjMatrix();
+		void RecordReduceCmd(int current_frame);
+
+		void CreateCompute();
 		void CleanUpCompute();
+		void Computecreateimagedata();
+		void Computedeleteimagedata();
+		void RecordComputeCmd(int current_frame, int current_imageindex);
+
+		void CreateGui();
+		void CleanUpGui();
+		void Guicreateimagedata();
+		void Guideleteimagedata();
+		void RecordGuiCmd(int current_frame);
+
 		void CleanUpGeneral();
 		void CreateAtmosphere();
-		void CreateCompute();
+
+		void CreateShadow();
+		void createShadowFinal();
+		void CleanUpShadow();
+		void Shadowdeleteimagedata();
+		void Shadowcreateimagedata();
+		void RecordShadowCmd(int current_frame);
+		void RecordShadowHelper(int32_t offsetx, int32_t offsety, int index, int current_frame);
 
 		void CreateQuad();
 		void CleanUpQuad();
@@ -112,16 +155,15 @@ namespace Gibo {
 		void Quadcreateimagedata();
 		void Quaddeleteimagedata();
 
-		void RecordComputeCmd(int current_frame, int current_imageindex);
-		void RecordPBRCmd(int current_frame);
-		void UpdateDescriptorGraveYard();
-		void SortBlendedObjects();
-		void SetProjectionMatrix();
-		void SetCameraMatrix();
 		void startImGui();
 		void updateImGui(int current_frame, int imageindex);
 		void closeImGui();
 
+		void UpdateDescriptorGraveYard();
+		void UpdateShadowLights(int current_frame);
+		void SortBlendedObjects();
+		void SetProjectionMatrix();
+		void SetCameraMatrix();
 	private:
 		Input InputManager; //1030 bytes
 		vkcoreDevice Device; //8 bytes
@@ -137,13 +179,12 @@ namespace Gibo {
 		VkSampleCountFlagBits multisampling_count = VK_SAMPLE_COUNT_1_BIT;
 		VkExtent2D Resolution = { 800, 640 };
 		bool Resolution_Fitted = true;
-		VkExtent2D proj_extent = { 800 , 640 };
 		float FOV = 45.0f;
-		float near_plane = 0.01f;
+		float near_plane = 1.0f;
 		float far_plane = 1000.0f;
 
 		//imgui variables
-		int imguimulti_count = 1;
+		int imguimulti_count = 0;
 		bool multi_changed = false;
 		bool full_screenchanged = false;
 		bool imguifullscreen = false;
@@ -152,6 +193,7 @@ namespace Gibo {
 		bool resolution_changed = false;
 
 		//pbr
+		VkFormat main_color_format;
 		VkRenderPass renderpass_pbr;
 
 		std::vector<vkcoreImage> color_attachment;
@@ -166,7 +208,13 @@ namespace Gibo {
 		vkcorePipeline pipeline_pbr;
 		std::vector<VkCommandBuffer> cmdbuffer_pbr;
 
+		std::vector<vkcoreBuffer> cascade_buffer;
+		std::vector<vkcoreBuffer> point_pbrbuffer;
+		std::vector<vkcoreBuffer> point_infobuffer;
+
 		//post-processing
+		std::vector<vkcoreImage> ppcolor_attachment;
+		std::vector<VkImageView> ppcolor_attachmentview;
 		ShaderProgram program_compute;
 		vkcorePipeline pipeline_compute;
 		std::vector<VkCommandBuffer> cmdbuffer_compute;
@@ -177,9 +225,15 @@ namespace Gibo {
 		std::vector<VkCommandBuffer> cmdbuffer_imgui;
 		std::vector<VkFramebuffer> framebuffer_imgui;
 
+		//guioverlay
+		VkRenderPass renderpass_gui;
+		std::vector<VkFramebuffer> framebuffer_gui;
+		ShaderProgram program_gui;
+		vkcorePipeline pipeline_gui;
+		std::vector<VkCommandBuffer> cmdbuffer_gui;
+		MeshCache::Mesh shadowmesh_gui;
+
 		//quad
-		std::vector<vkcoreImage> color_attachmentquad;
-		std::vector<VkImageView> color_attachmentviewquad;
 		VkRenderPass renderpass_quad;
 		std::vector<VkFramebuffer> framebuffers_quad;
 		ShaderProgram program_quad;
@@ -188,6 +242,88 @@ namespace Gibo {
 		VkSampler sampler_quad;
 		MeshCache::Mesh mesh_quad;
 
+		//depth presspass
+		VkRenderPass renderpass_depth;
+		std::vector<vkcoreImage> depthprepass_attachment;
+		std::vector<VkImageView> depthprepass_view;
+		std::vector<VkFramebuffer> framebuffers_depth;
+		ShaderProgram program_depth;
+		vkcorePipeline pipeline_depth;
+		std::vector<VkCommandBuffer> cmdbuffer_depth;
+
+		//reduce
+		std::vector<std::vector<vkcoreImage>> reduce_images;
+		std::vector<std::vector<VkImageView>> reduce_views;
+		ShaderProgram program_reduce;
+		vkcorePipeline pipeline_reduce;
+		ShaderProgram program_reduce2;
+		vkcorePipeline pipeline_reduce2;
+		std::vector<VkCommandBuffer> cmdbuffer_reduce;
+		reduce_struct reduce_data;
+		vkcoreBuffer reduce_buffer; //might bug out a frame if you change projection/near/far plane but who cares
+		vkcoreBuffer reduce_stagingbuffer;
+		std::vector<std::vector<VkDescriptorSet>> reduce_descriptors;
+		std::vector<VkExtent2D> reduce_extents;
+		vkcoreImage dummyimageMS;
+		VkImageView dummyviewMS;
+		vkcoreBuffer minmax_buffer;
+
+		//shadows
+		VkRenderPass renderpass_shadow;
+		VkRenderPass renderpass_shadowpoint;
+		std::vector<vkcoreImage> shadowcascade_atlasimage;
+		std::vector<VkImageView> shadowcascade_atlasview;
+		std::vector<VkFramebuffer> framebuffer_shadowcascadesatlas;
+		std::vector<vkcoreImage> shadowpoint_atlasimage;
+		std::vector<VkImageView> shadowpoint_atlasview;
+		std::vector<VkFramebuffer> framebuffer_shadowpoints;
+		std::vector<std::vector<vkcoreBuffer>> shadowcascade_pv_buffers;
+		std::vector<std::vector<vkcoreBuffer>> shadowcascade_nearplane_buffers;
+		std::vector<vkcoreBuffer>  cascade_depthbuffers;
+		std::vector<std::vector<vkcoreBuffer>> shadowpoint_pv_buffers;
+		VkSampler shadowmapsampler;
+		VkSampler shadowcubemapsampler;
+		ShaderProgram program_shadow;
+		ShaderProgram program_shadowpoint;
+		vkcorePipeline pipeline_shadow;
+		vkcorePipeline pipeline_shadowpoint;
+		std::vector<VkCommandBuffer> cmdbuffer_shadow;
+		std::vector<float> cascade_nears; //need this to pancake everythig to each cascades orthogonalplane
+		std::vector<glm::vec4> cascade_depths;
+
+		//cascade options
+		glm::vec4 bias_info = glm::vec4(0.002, 0.002, 0.002, 0); //constant, normal, slope, not used
+		int pcf_method = 0;
+		const int CASCADE_COUNT = 4;
+		const int MAX_CASCADES = 6; //needs to be updated with shaders
+		bool SDSM_ENABLE = true;
+		bool STABLE_ENABLE = false;
+		uint32_t shadow_width = 1024 * 2;
+		uint32_t shadow_height = 1024 * 2;
+		uint32_t atlas_width = shadow_width * 2;
+		uint32_t atlas_height = shadow_height *std::ceil(CASCADE_COUNT / 2.0f);
+		//this is how far back the lights camera is from center of frustrum. Should be large enough to fit whole frustrum.
+		//Really it can be as far back as it needs only problem is maybe precision errors if it gets so big near and far plane will be 20000, etc
+		float cascade_sun_distance = 20000.0f;  //5000
+		VkFormat cascadedshadow_map_format = VK_FORMAT_D16_UNORM; //VK_FORMAT_D32_SFLOAT, VK_FORMAT_D16_UNORM  TODO- why doesn't D32_float work?
+		
+		//point/spot options
+		int lightshadow_counter = 0;
+		std::vector<int> pointsize_current;
+		std::vector<int> spotsize_current;
+		int point_current = 0;
+		int spot_current = 0;
+		VkFormat pointspot_format = VK_FORMAT_D16_UNORM;
+		uint32_t shadowpoint_width = 512 * 1;
+		uint32_t shadowpoint_height = 512 * 1;
+		uint32_t atlaspoint_width = 1024 * 2;
+		uint32_t atlaspoint_height = 1024 * 2;
+		uint32_t MAX_POINT_IMAGES = (atlaspoint_width / shadowpoint_width) * (atlaspoint_height / shadowpoint_height); //update to shader
+		glm::vec4 point_info;
+
+		std::array<float, 30> time_depth;
+		std::array<float, 30> time_reduce;
+		std::array<float, 30> time_shadow;
 		std::array<float, 30> time_mainpass;
 		std::array<float, 30> time_quad;
 		std::array<float, 30> time_pp;
@@ -195,7 +331,7 @@ namespace Gibo {
 		int time_counter = 0;
 
 		glm::mat4 proj_matrix;
-		glm::mat4 cam_matrix;
+		glm::mat4 cam_matrix = glm::mat4(1.0f);
 		glm::vec3 cam_position;
 		std::vector<vkcoreBuffer> pv_uniform;
 
@@ -203,12 +339,16 @@ namespace Gibo {
 		std::vector<VkFence> inFlightFences; 
 		std::vector<VkFence> swapimageFences;
 		std::vector<VkSemaphore> semaphore_imagefetch;
+		std::vector<VkSemaphore> semaphore_depth;
+		std::vector<VkSemaphore> semaphore_reduce;
+		std::vector<VkSemaphore> semaphore_shadow;
 		std::vector<VkSemaphore> semaphore_colorpass;
+		std::vector<VkSemaphore> semaphore_gui;
 		std::vector<VkSemaphore> semaphore_quad;
 		std::vector<VkSemaphore> semaphore_computepass;
 		std::vector<VkSemaphore> semaphore_imgui;
 
-		int FRAMES_IN_FLIGHT = 3;
+		int FRAMES_IN_FLIGHT = 3; //Make sure to test with different number
 		int current_frame_in_flight = 0;
 
 		std::vector<descriptorgraveinfo> descriptorgraveyard;
