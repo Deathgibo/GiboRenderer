@@ -1,0 +1,31 @@
+#version 450
+#extension GL_ARB_separate_shader_objects : enable
+
+
+#define WORKGROUP_SIZE 1
+
+layout(local_size_x=1, local_size_y=256, local_size_z=1 ) in;
+
+layout(binding=0, rgba32f) uniform image3D Routput_tex; //coherent restrict writeonly
+layout(binding=1, rgba32f) uniform image3D Moutput_tex; //coherent restrict writeonly
+layout(binding=2, rgba32f) uniform image3D Rinput_tex; 
+layout(binding=3, rgba32f) uniform image3D Minput_tex; //coherent restrict writeonly
+
+void main()
+{
+	//Rayleigh
+	vec4 Rinput_pixel = imageLoad(Rinput_tex, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z));
+	vec4 Routput_pixel = imageLoad(Routput_tex, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z));
+
+	vec4 Rfinal_pixel = Rinput_pixel + Routput_pixel;
+
+	imageStore(Routput_tex, ivec3(gl_GlobalInvocationID.xyz), Rfinal_pixel);
+
+	//Mie
+	vec4 Minput_pixel = imageLoad(Minput_tex, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z));
+	vec4 Moutput_pixel = imageLoad(Moutput_tex, ivec3(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, gl_GlobalInvocationID.z));
+
+	vec4 Mfinal_pixel = Minput_pixel + Moutput_pixel;
+
+	imageStore(Moutput_tex, ivec3(gl_GlobalInvocationID.xyz), Mfinal_pixel);
+}

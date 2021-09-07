@@ -1,5 +1,6 @@
 #pragma once
 #include "RenderObject.h"
+#include "AssetManager.h"
 #include "../Utilities/memorypractice.h"
 #include <array>
 
@@ -71,7 +72,8 @@ namespace Gibo {
 		};
 
 	public:
-		RenderObjectManager(vkcoreDevice& device, int framesinflight) : deviceref(device), maxframesinflight(framesinflight), object_pool(MAX_OBJECTS_ALLOWED)
+		RenderObjectManager(vkcoreDevice& device, MeshCache& Meshcache, int framesinflight) : deviceref(device), meshcache(Meshcache), maxframesinflight(framesinflight), 
+			               object_pool(MAX_OBJECTS_ALLOWED)
 		{
 			graveyard.reserve(MAX_OBJECTS_ALLOWED); Object_Bin[0].reserve(MAX_OBJECTS_ALLOWED); Object_Bin[1].reserve(MAX_OBJECTS_ALLOWED); Object_vector.reserve(MAX_OBJECTS_ALLOWED);
 		};
@@ -106,6 +108,10 @@ namespace Gibo {
 			//VECTOR
 			Object_vector.push_back(object);
 
+			//bounding volumes (Copy orginal bounding volume for mesh into new pointer, then transform it to current models model matrix)
+			meshcache.GetOriginalMeshBV(object->GetMesh().mesh_name, Object_bvs[object->descriptor_id]);
+			Object_bvs[object->descriptor_id]->Transform(object->internal_matrix);
+
 			//other data structures
 		}
 
@@ -132,10 +138,25 @@ namespace Gibo {
 					Object_vector.erase(Object_vector.begin() + i);
 				}
 			}
+
+			//bounding volume (remove bounding volume pointer and erase from data structure)
+			delete Object_bvs[object->descriptor_id];
+			Object_bvs.erase(object->descriptor_id);
 		}
 
 		void Update()
 		{
+			//check to see if any renderobject has moved so we can delete volume, get original, move it to new spot
+			for (int i = 0; i < Object_vector.size(); i++)
+			{
+				if (Object_vector[i]->Moved())
+				{
+					delete Object_bvs[Object_vector[i]->descriptor_id];
+					meshcache.GetOriginalMeshBV(Object_vector[i]->GetMesh().mesh_name, Object_bvs[Object_vector[i]->descriptor_id]);
+					Object_bvs[Object_vector[i]->descriptor_id]->Transform(Object_vector[i]->internal_matrix);
+				}
+			}
+
 			//loop through graveyard objects and increment timer once it gets to frames in flight you can safely remove it from all data structures
 			for (int i = 0; i < graveyard.size(); i++)
 			{
@@ -167,10 +188,17 @@ namespace Gibo {
 			Object_Bin[1].clear();
 
 			Object_vector.clear();
+
+			for (auto boundingvolume : Object_bvs)
+			{
+				delete boundingvolume.second;
+			}
+			Object_bvs.clear();
 		}
 
 		std::array<std::vector<RenderObject*>, BIN_SIZE>& GetBin() { return Object_Bin; };
 		std::vector<RenderObject*>& GetVector() { return Object_vector; }
+		std::unordered_map<uint32_t, BoundingVolume*>& GetBoundingVolumes() { return Object_bvs; }
 
 	private:
 		void DeleteObject(RenderObject* object)
@@ -190,8 +218,10 @@ namespace Gibo {
 		std::vector<graveyardinfo> graveyard; //data-structure for holding removed objects. since frames are in flight it must wait x amount of frames before actually deleting the memory
 		std::array<std::vector<RenderObject*>, BIN_SIZE> Object_Bin; //a bin structure with holds vectors in each bin, and bins are used for different rendering purposes to group objects
 		std::vector<RenderObject*> Object_vector; //a simple contiguous data structure if you need to loop through every object quickly
+		std::unordered_map<uint32_t, BoundingVolume*> Object_bvs; //holds bounding volumes for renderobjects. I didn't want to store this data in the main renderobject because memory coherency.
 
 		vkcoreDevice& deviceref;
+		MeshCache& meshcache;
 		int maxframesinflight;
 
 		PoolAllocator<RenderObject> object_pool;

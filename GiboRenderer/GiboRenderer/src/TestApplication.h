@@ -70,28 +70,28 @@ public:
 
 		//OBJECTS
 		RenderObject* teapot = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), uvmap2texture);
-		teapot->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/teapot.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/teapot.fbx", teapot->GetMesh());
 		teapot->GetMaterial().SetRoughness(1.0f);
 		teapot->GetMaterial().SetAlbedo(glm::vec3(1.00, 0.71, 0.29));
 		teapot->GetMaterial().SetNormalMap(hexnormaltexture);
 		teapot->SetTransformation(glm::vec3(-2, 2, -3), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* teapot2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), uvmap2texture);
-		teapot2->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/teapot.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/teapot.fbx", teapot2->GetMesh());
 		teapot2->GetMaterial().SetRoughness(1.0f);
 		teapot2->GetMaterial().SetAlbedo(glm::vec3(1.00, 0.71, 0.29));
 		teapot2->GetMaterial().SetNormalMap(hexnormaltexture);
 		teapot2->SetTransformation(glm::vec3(-2, 4, -87), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 		
 		RenderObject* sphere = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere->GetMesh());
 		sphere->GetMaterial().SetAlbedoMap(concretetexture);
 		sphere->GetMaterial().SetNormalMap(concretenormaltexture);
 		sphere->GetMaterial().SetSpecularMap(concretespeculartexture);
 		sphere->SetTransformation(glm::vec3(2, 2, -3), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 		
 		RenderObject* floor = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		floor->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(floor->GetMesh());
 		//floor->GetMaterial().SetAlbedoMap(bricktexture);
 		//floor->GetMaterial().SetNormalMap(bricknormaltexture);
 		floor->GetMaterial().SetReflectance(.4);
@@ -99,189 +99,193 @@ public:
 		floor->SetTransformation(glm::vec3(0, 0, 0), glm::vec3(100, 100, 100), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 
 		RenderObject* plane1 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		plane1->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(plane1->GetMesh());
 		plane1->GetMaterial().SetAlbedo(glm::vec3(.3, .3, .8));
 		plane1->SetTransformation(glm::vec3(-40, 1, 0), glm::vec3(7, 7, 7), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 
 		RenderObject* plane2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		plane2->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(plane2->GetMesh());
 		plane2->GetMaterial().SetAlbedo(glm::vec3(.3, .3, .8));
 		plane2->SetTransformation(glm::vec3(-40, 13, 0), glm::vec3(7, 7, 7), RenderObject::ROTATE_DIMENSION::XANGLE, -20);
 
 		RenderObject* plane3 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		plane3->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(plane3->GetMesh());
 		plane3->GetMaterial().SetAlbedo(glm::vec3(.3, .3, .8));
 		plane3->SetTransformation(glm::vec3(-40, 1, 20), glm::vec3(7, 7, 7), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 
 		RenderObject* plane4 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		plane4->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(plane4->GetMesh());
 		plane4->GetMaterial().SetAlbedo(glm::vec3(.3, .3, .8));
 		plane4->SetTransformation(glm::vec3(-40, 5, 30), glm::vec3(7, 7, 7), RenderObject::ROTATE_DIMENSION::XANGLE, -10);
 
 		RenderObject* spherebig = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		spherebig->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", spherebig->GetMesh());
 		spherebig->GetMaterial().SetAlbedoMap(stonetexture);
 		spherebig->SetTransformation(glm::vec3(-180, 25, -100), glm::vec3(50, 50, 50), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* cyborg = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		cyborg->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/cyborg/cyborg.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/cyborg/cyborg.obj", cyborg->GetMesh());
 		cyborg->GetMaterial().SetNormalMap(cyborgnormal);
 		cyborg->GetMaterial().SetSpecularMap(cyborgspecular);
 		cyborg->GetMaterial().SetAlbedoMap(cyborgabledo);
 		cyborg->SetTransformation(glm::vec3(0, 0, 6), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* fence1 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence1->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence.fbx", fence1->GetMesh());
 		fence1->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence1->SetTransformation(glm::vec3(5, 2, 40), glm::vec3(10, 10, 10), RenderObject::ROTATE_DIMENSION::XANGLE, -70);
 
 
 		RenderObject* fence2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence2->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence2.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence2.fbx", fence2->GetMesh());
 		fence2->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence2->SetTransformation(glm::vec3(50, 15, 35), glm::vec3(15, 15, 15), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 
 		RenderObject* fence3 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence3->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/mount.blend1.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/mount.blend1.obj", fence3->GetMesh());
 		fence3->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence3->SetTransformation(glm::vec3(100, 5, -80), glm::vec3(15, 15, 15), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* fence4 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence4->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence_01_obj.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence_01_obj.obj", fence4->GetMesh());
 		fence4->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence4->SetTransformation(glm::vec3(0, 10, 10), glm::vec3(.01, .01, .01), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* fence5 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence5->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence_01_obj.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence_01_obj.obj", fence5->GetMesh());
 		fence5->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence5->SetTransformation(glm::vec3(-40, 0, 40), glm::vec3(.001, .001, .001), RenderObject::ROTATE_DIMENSION::YANGLE, 90);
 
 		RenderObject* fence6 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence6->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence_01_obj.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence_01_obj.obj", fence6->GetMesh());
 		fence6->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence6->SetTransformation(glm::vec3(-40, 0, 43), glm::vec3(.001, .001, .001), RenderObject::ROTATE_DIMENSION::YANGLE, 90);
 
 		RenderObject* fence7 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		fence7->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/fence_01_obj.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/fence_01_obj.obj", fence7->GetMesh());
 		fence7->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		fence7->SetTransformation(glm::vec3(-40, 0, 46), glm::vec3(.001, .001, .001), RenderObject::ROTATE_DIMENSION::YANGLE, 90);
 
 		RenderObject* stairs = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		stairs->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/Stair.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/Stair.fbx", stairs->GetMesh());
 		stairs->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		stairs->SetTransformation(glm::vec3(-60, .1, 40), glm::vec3(.01, 0.01, 0.01), RenderObject::ROTATE_DIMENSION::YANGLE, 180);
 
 		RenderObject* stairs2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		stairs2->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/Stair.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/Stair.fbx", stairs2->GetMesh());
 		stairs2->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		stairs2->SetTransformation(glm::vec3(-60, .1, 50), glm::vec3(.005, .005, .005), RenderObject::ROTATE_DIMENSION::YANGLE, 180);
 
 		RenderObject* stairs3 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		stairs3->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/Stair.fbx"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/Stair.fbx", stairs3->GetMesh());
 		stairs3->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		stairs3->SetTransformation(glm::vec3(-60, .1, 30), glm::vec3(.04, .04, .04), RenderObject::ROTATE_DIMENSION::YANGLE, 180);
 		
 		RenderObject* mountain1 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		mountain1->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/mountain.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/mountain.obj", mountain1->GetMesh());
 		mountain1->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		mountain1->SetTransformation(glm::vec3(-60, 1, 70), glm::vec3(2, 2, 2), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* sphere_metal = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_metal->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_metal->GetMesh());
 		sphere_metal->GetMaterial().SetSilverMaterial();
 		sphere_metal->SetTransformation(glm::vec3(-5, 14, 0), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* sphere_stone = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_stone->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_stone->GetMesh());
 		sphere_stone->GetMaterial().SetAlbedoMap(stonetexture);
 		sphere_stone->GetMaterial().SetNormalMap(stonenormaltexture);
 		sphere_stone->SetTransformation(glm::vec3(5, 14, 0), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* sphere_tri = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_tri->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_tri->GetMesh());
 		sphere_tri->GetMaterial().SetPlasticMaterial();
 		sphere_tri->GetMaterial().SetNormalMap(trianglenormaltexture);
 		sphere_tri->SetTransformation(glm::vec3(0, 14, -5), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* sphere_gold = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_gold->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_gold->GetMesh());
 		sphere_gold->GetMaterial().SetGoldMaterial();
 		sphere_gold->GetMaterial().SetNormalMap(hexnormaltexture);
 		sphere_gold->SetTransformation(glm::vec3(0, 14, 0), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* cube = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		cube->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/cube.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/cube.obj", cube->GetMesh());
 		cube->GetMaterial().SetSilverMaterial();
 		cube->GetMaterial().SetNormalMap(patternnormaltexture);
 		cube->SetTransformation(glm::vec3(0, 14, 5), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* bunny = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		bunny->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/stanford-bunny.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/stanford-bunny.obj", bunny->GetMesh());
 		bunny->GetMaterial().SetSilverMaterial();
 		bunny->SetTransformation(glm::vec3(4, 0, 2), glm::vec3(20, 20, 20), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* bucaneer = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		bucaneer->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(bucaneer->GetMesh());
 		bucaneer->GetMaterial().SetAlbedoMap(bucaneertexture);
 		bucaneer->SetTransformation(glm::vec3(-2, 1, 2), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* window1 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		window1->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(window1->GetMesh());
 		window1->GetMaterial().SetAlbedoMap(windowtexture);
 		window1->SetTransformation(glm::vec3(5, 3, 8), glm::vec3(2, 2, 2), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* window2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		window2->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(window2->GetMesh());
 		window2->GetMaterial().SetAlbedoMap(windowtexture);
 		window2->SetTransformation(glm::vec3(5, 3, 5), glm::vec3(2, 2, 2), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* monkey = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		monkey->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/monkeyhead.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/monkeyhead.obj", monkey->GetMesh());
 		monkey->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		monkey->GetMaterial().SetAlpha(.7);
 		monkey->SetTransformation(glm::vec3(10, 1, 10), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::YANGLE, 200);
 
 		RenderObject* torus = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		torus->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/torus.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/torus.obj", torus->GetMesh());
 		torus->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		torus->SetTransformation(glm::vec3(10, 3, 0), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 10);
 
 		RenderObject* sphere_white = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_white->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_white->GetMesh());
 		sphere_white->SetTransformation(glm::vec3(-4, 2, -2), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
+		RenderObject* sphere_light = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_light->GetMesh());
+		sphere_light->SetTransformation(glm::vec3(-4, 2, -2), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
+
 		RenderObject* sphere_white2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		sphere_white2->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/uvsphere.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/uvsphere.obj", sphere_white2->GetMesh());
 		sphere_white2->GetMaterial().SetRoughness(.3);
 		sphere_white2->SetTransformation(glm::vec3(-8, 2, 2), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 		RenderObject* grass1 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		grass1->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(grass1->GetMesh());
 		grass1->GetMaterial().SetAlbedoMap(grasstexture);
 		grass1->SetTransformation(glm::vec3(-10, 3, 15), glm::vec3(3, 3, 3), RenderObject::ROTATE_DIMENSION::YANGLE, 0);
 
 		RenderObject* grass2 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		grass2->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(grass2->GetMesh());
 		grass2->GetMaterial().SetAlbedoMap(grasstexture);
 		grass2->SetTransformation(glm::vec3(-10, 3, 12), glm::vec3(3, 3, 3), RenderObject::ROTATE_DIMENSION::YANGLE, -5);
 
 		RenderObject* grass3 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		grass3->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(grass3->GetMesh());
 		grass3->GetMaterial().SetAlbedoMap(grasstexture);
 		grass3->SetTransformation(glm::vec3(-11, 3, 14), glm::vec3(3, 3, 3), RenderObject::ROTATE_DIMENSION::YANGLE, 10);
 
 		RenderObject* grass4 = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		grass4->SetMesh(Renderer.GetMeshCache()->GetQuadMesh());
+		Renderer.GetMeshCache()->SetQuadMesh(grass4->GetMesh());
 		grass4->GetMaterial().SetAlbedoMap(grasstexture);
 		grass4->SetTransformation(glm::vec3(-8, 3, 11), glm::vec3(3, 3, 3), RenderObject::ROTATE_DIMENSION::YANGLE, 5);
 
 		RenderObject* tower = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		tower->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/cyber/0.stl"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/cyber/0.stl", tower->GetMesh());
 		tower->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		tower->SetTransformation(glm::vec3(0, 3, -15), glm::vec3(15.008, 15.008, 15.008), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 
 		RenderObject* house = Renderer.GetObjectManager()->CreateRenderObject(Renderer.GetDevice(), rocktexture);
-		house->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/house.obj"));
+		Renderer.GetMeshCache()->SetObjectMesh("Models/house.obj", house->GetMesh());
 		house->GetMaterial().SetAlbedo(glm::vec3(.8, .8, .8));
 		house->SetTransformation(glm::vec3(0, 0, -65), glm::vec3(0.05, 0.05, 0.05), RenderObject::ROTATE_DIMENSION::XANGLE, -90);
 		
@@ -305,6 +309,7 @@ public:
 		Renderer.AddRenderObject(grass4, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.AddRenderObject(torus, RenderObjectManager::BIN_TYPE::REGULAR);
 		Renderer.AddRenderObject(sphere_white, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.AddRenderObject(sphere_light, RenderObjectManager::BIN_TYPE::REGULAR);
 		Renderer.AddRenderObject(sphere_white2, RenderObjectManager::BIN_TYPE::REGULAR);
 		Renderer.AddRenderObject(tower, RenderObjectManager::BIN_TYPE::REGULAR);
 		Renderer.AddRenderObject(fence1, RenderObjectManager::BIN_TYPE::REGULAR);
@@ -327,49 +332,58 @@ public:
 		Renderer.AddRenderObject(teapot2, RenderObjectManager::BIN_TYPE::REGULAR);
 
 		//LIGHTS POINTS FIRST THEN SPOTS
-		glm::vec4 light3_pos(5, 3, -85, 1);
-		Light* light3 = Renderer.GetLightManager()->CreateLight();
-		light3->setColor(glm::vec4(.3, .3f, 0.3f, 1)).setFallOff(30).setCastShadow(true).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(400).setPosition(light3_pos).
-			setInnerAngle(60).setOuterAngle(75).setType(Light::light_type::POINT);
-		Renderer.GetLightManager()->AddLight(*light3);
-
 		Light* light1 = Renderer.GetLightManager()->CreateLight();
-		light1->setColor(glm::vec4(.3, .4f, 0.9f, 1)).setCastShadow(true).setFallOff(50).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(150).setPosition(glm::vec4(4, 4, 2, 1)).
+		light1->setColor(glm::vec4(.3, .4f, 0.9f, 1)).setFallOff(10).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(150).setPosition(glm::vec4(4, 4, 2, 1)).
 			setInnerAngle(15).setOuterAngle(45).setType(Light::light_type::SPOT);
 		Renderer.GetLightManager()->AddLight(*light1);
+		Renderer.GetLightManager()->SetShadowCaster(*light1, true);
 
 		Light* light2 = Renderer.GetLightManager()->CreateLight();
-		light2->setColor(glm::vec4(.8, .4f, 0.4f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-46, 5, 40, 1)).
+		light2->setColor(glm::vec4(.8, .4f, 0.4f, 1)).setFallOff(10).setDirection(glm::vec4(1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-46, 5, 40, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
 		Renderer.GetLightManager()->AddLight(*light2);
+		Renderer.GetLightManager()->SetShadowCaster(*light2, true);
+
+		glm::vec4 light3_pos(5, 3, -85, 1);
+		Light* light3 = Renderer.GetLightManager()->CreateLight();
+		light3->setColor(glm::vec4(.3, .3f, 0.3f, 1)).setFallOff(30).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(400).setPosition(light3_pos).
+			setInnerAngle(60).setOuterAngle(75).setType(Light::light_type::POINT);
+		Renderer.GetLightManager()->AddLight(*light3);
+		Renderer.GetLightManager()->SetShadowCaster(*light3, true);
+
+		Light* lightlol = Renderer.GetLightManager()->CreateLight();
+		lightlol->setColor(glm::vec4(.6, .1f, 0.6f, 1)).setFallOff(30).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(400).setPosition(glm::vec4(-30,10,10,1)).
+			setInnerAngle(60).setOuterAngle(75).setType(Light::light_type::POINT);
+		Renderer.GetLightManager()->AddLight(*lightlol);
+		Renderer.GetLightManager()->SetShadowCaster(*lightlol, true);
 
 		Light* light4 = Renderer.GetLightManager()->CreateLight();
-		light4->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-46, 5, 45, 1)).
+		light4->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setDirection(glm::vec4(1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-46, 5, 45, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
-		Renderer.GetLightManager()->AddLight(*light4);
+		//Renderer.GetLightManager()->AddLight(*light4);
 
 		Light* light5 = Renderer.GetLightManager()->CreateLight();
-		light5->setColor(glm::vec4(.8, .8f, 0.4f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(-1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(2, 5, -4, 1)).
+		light5->setColor(glm::vec4(.8, .8f, 0.4f, 1)).setFallOff(50).setDirection(glm::vec4(-1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(2, 5, -4, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
-		Renderer.GetLightManager()->AddLight(*light5);
+		//Renderer.GetLightManager()->AddLight(*light5);
 
 		Light* light6 = Renderer.GetLightManager()->CreateLight();
-		light6->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(-1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-4, 5, 1, 1)).
+		light6->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setDirection(glm::vec4(-1, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(-4, 5, 1, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
-		Renderer.GetLightManager()->AddLight(*light6);
+		//Renderer.GetLightManager()->AddLight(*light6);
 
 		Light* light7 = Renderer.GetLightManager()->CreateLight();
-		light7->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(0, 7, 5, 1)).
+		light7->setColor(glm::vec4(.4, .8f, 0.4f, 1)).setFallOff(50).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(0, 7, 5, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
-		Renderer.GetLightManager()->AddLight(*light7);
+		//Renderer.GetLightManager()->AddLight(*light7);
 
 		Light* light8 = Renderer.GetLightManager()->CreateLight();
-		light8->setColor(glm::vec4(.1, .8f, 0.8f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(10, 7, -1, 1)).
+		light8->setColor(glm::vec4(.1, .8f, 0.8f, 1)).setFallOff(50).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(10, 7, -1, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
-		Renderer.GetLightManager()->AddLight(*light8);
+		//Renderer.GetLightManager()->AddLight(*light8);
 
 		Light* light9 = Renderer.GetLightManager()->CreateLight();
-		light9->setColor(glm::vec4(.1, .8f, 0.8f, 1)).setFallOff(50).setCastShadow(true).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(10, 7, -1, 1)).
+		light9->setColor(glm::vec4(.1, .8f, 0.8f, 1)).setFallOff(50).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(1000).setPosition(glm::vec4(10, 7, -1, 1)).
 			setInnerAngle(15).setOuterAngle(30).setType(Light::light_type::SPOT);
 
 
@@ -383,7 +397,7 @@ public:
 		float torus_angle = 10;
 		int spawn_time = 0;
 
-		const int ObjectCount = 40;
+		const int ObjectCount = 50;
 		RenderObject* tmps_objects[ObjectCount];
 		Light* tmp_lights[ObjectCount];
 		int teapot_right = 1;
@@ -405,26 +419,30 @@ public:
 				{
 					//spawn and submit
 					tmps_objects[i] = new RenderObject(Renderer.GetDevice(), rocktexture, Renderer.GetFramesInFlight());
-					tmps_objects[i]->SetMesh(Renderer.GetMeshCache()->GetMesh("Models/cyborg/cyborg.obj"));
+					Renderer.GetMeshCache()->SetObjectMesh("Models/cyborg/cyborg.obj", tmps_objects[i]->GetMesh());
 					tmps_objects[i]->GetMaterial().SetAlbedoMap(bricktexture);
 					tmps_objects[i]->GetMaterial().SetRoughness(.3);
 					tmps_objects[i]->SetTransformation(glm::vec3(i*2, 1, -10), glm::vec3(1, 1, 1), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 					Renderer.AddRenderObject(tmps_objects[i], RenderObjectManager::BIN_TYPE::REGULAR);
 					
-					//tmp_lights[i] = Renderer.GetLightManager()->CreateLight();
-					//tmp_lights[i]->setColor(glm::vec4(.1, .4f, 0.8f, 1)).setFallOff(50).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(150).setPosition(glm::vec4(i * 2, 6, -10, 1)).
-					//	setInnerAngle(20).setOuterAngle(25).setType(Light::light_type::SPOT);
-					//Renderer.GetLightManager()->AddLight(*tmp_lights[i]);
+					if (i < 49) {
+						tmp_lights[i] = Renderer.GetLightManager()->CreateLight();
+						tmp_lights[i]->setColor(glm::vec4(.1, .4f, 0.8f, 1)).setFallOff(10).setDirection(glm::vec4(0, -1, 0, 1)).setIntensity(150).setPosition(glm::vec4(-100 + (200/7)*(i%7),6,-100 + (200 / 7)*std::floor(i/7),1)).
+							setInnerAngle(20).setOuterAngle(25).setType(Light::light_type::SPOT);
+						Renderer.GetLightManager()->AddLight(*tmp_lights[i]);
+					}
 				}
+
+				Renderer.GetLightManager()->SetShadowCaster(*light1, false);
 			}
 
 			Renderer.Update();
 			
 			//only update if you add/delete lights
-			//light2_color.x = ((int)((light2_color.x * 255) + 150) % 255) / 255.0f;
-			//light2_color.y = ((int)((light2_color.y * 255) + 150) % 255) / 255.0f;
-			//light2->setColor(light2_color);
+			light2_color.x = ((int)((light2_color.x * 255) + 1) % 255) / 255.0f;
+			light2_color.y = ((int)((light2_color.y * 255) + 1) % 255) / 255.0f;
+			light2->setColor(light2_color);
 
 
 			if (spawn_time == 800)
@@ -435,10 +453,14 @@ public:
 				{
 					Renderer.RemoveRenderObject(tmps_objects[i], RenderObjectManager::BIN_TYPE::REGULAR);
 
-					//Renderer.GetLightManager()->RemoveLight(*tmp_lights[i]);
-					//Renderer.GetLightManager()->DestroyLight(tmp_lights[i]);
+					if (i < 49) {
+						Renderer.GetLightManager()->RemoveLight(*tmp_lights[i]);
+						Renderer.GetLightManager()->DestroyLight(tmp_lights[i]);
+					}
 				}
 				spawn_time = 0;
+
+				Renderer.GetLightManager()->SetShadowCaster(*light1, true);
 			}
 
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_ESCAPE))
@@ -462,40 +484,40 @@ public:
 				light3_pos.z-= speed;
 				light3->setPosition(light3_pos);
 
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_K)) {
 				light3_pos.z+= speed;
 				light3->setPosition(light3_pos);
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_J)) {
 				light3_pos.x-= speed;
 				light3->setPosition(light3_pos);
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_L)) {
 				light3_pos.x+= speed;
 				light3->setPosition(light3_pos);
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_U)) {
 				light3_pos.y-= speed;
 				light3->setPosition(light3_pos);
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
 			if (Renderer.GetInputManager().GetKeyPress(GLFW_KEY_O)) {
 				light3_pos.y+= speed;
 				light3->setPosition(light3_pos);
-				Renderer.GetLightManager()->AddLight(*light9);
-				Renderer.GetLightManager()->RemoveLight(*light9);
+				//Renderer.GetLightManager()->AddLight(*light9);
+				//Renderer.GetLightManager()->RemoveLight(*light9);
 			}
-
+			//sphere_light->SetTransformation(light3_pos, glm::vec3(light3->getParams().falloff, light3->getParams().falloff, light3->getParams().falloff), RenderObject::ROTATE_DIMENSION::XANGLE, 0);
 
 
 			teapot_roughness += .005*teapot_right;
@@ -576,13 +598,33 @@ public:
 		Renderer.RemoveRenderObject(window1, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.RemoveRenderObject(window2, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.RemoveRenderObject(monkey, RenderObjectManager::BIN_TYPE::BLENDABLE);
-		Renderer.RemoveRenderObject(torus, RenderObjectManager::BIN_TYPE::REGULAR);
-		Renderer.RemoveRenderObject(sphere_white, RenderObjectManager::BIN_TYPE::REGULAR);
-		Renderer.RemoveRenderObject(sphere_white2, RenderObjectManager::BIN_TYPE::REGULAR);
 		Renderer.RemoveRenderObject(grass1, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.RemoveRenderObject(grass2, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.RemoveRenderObject(grass3, RenderObjectManager::BIN_TYPE::BLENDABLE);
 		Renderer.RemoveRenderObject(grass4, RenderObjectManager::BIN_TYPE::BLENDABLE);
+		Renderer.RemoveRenderObject(torus, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(sphere_white, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(sphere_light, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(sphere_white2, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(tower, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence1, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence2, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence3, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence4, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence5, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence6, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(fence7, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(plane1, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(plane2, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(plane3, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(plane4, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(spherebig, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(mountain1, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(stairs, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(stairs2, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(stairs3, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(house, RenderObjectManager::BIN_TYPE::REGULAR);
+		Renderer.RemoveRenderObject(teapot2, RenderObjectManager::BIN_TYPE::REGULAR);
 
 		Renderer.GetLightManager()->RemoveLight(*light1);
 		Renderer.GetLightManager()->RemoveLight(*light2);
@@ -594,9 +636,11 @@ public:
 
 	void cleanup()
 	{
-		std::cout << "cleaning\n";
+		std::cout << "cleaning...\n";
 
-		//Renderer.ShutDownRenderer();
+		Renderer.ShutDownRenderer();
+
+		std::cout << "cleaning done\n";
 	}
 
 private:

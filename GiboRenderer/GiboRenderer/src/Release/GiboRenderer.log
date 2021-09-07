@@ -1,0 +1,269 @@
+﻿  pch.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\timer.h(25): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\timer.h(55): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+  QueryManager.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\querymanager.cpp(63): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\querymanager.cpp(83): warning C4244: 'initializing': conversion from 'float' to 'uint64_t', possible loss of data
+  CommandPoolCache.cpp
+  PipelineCache.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\pipelinecache.cpp(255): warning C4018: '<': signed/unsigned mismatch
+  ShaderProgram.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(9): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(40): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(70): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(95): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(126): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(156): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(195): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(228): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(255): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(285): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\shaderprogram.cpp(308): warning C4018: '<': signed/unsigned mismatch
+  SamplerCache.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.cpp(19): warning C4018: '<': signed/unsigned mismatch
+  RenderPassCache.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(34): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(117): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(141): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(146): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(151): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(156): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(161): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\renderpasscache.cpp(197): warning C4018: '<': signed/unsigned mismatch
+  vkcoreDevice.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoreprinthelper.h(115): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoreprinthelper.h(162): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoreprinthelper.h(172): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(44): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(211): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(234): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(345): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(402): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(414): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(436): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(559): warning C4838: conversion from 'int' to 'uint32_t' requires a narrowing conversion
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(583): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vkcoredevice.cpp(769): warning C4244: 'argument': conversion from 'VkDeviceSize' to 'size_t', possible loss of data
+  imgui_impl_vulkan.cpp
+  AssetManager.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\assetmanager.cpp(164): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\assetmanager.cpp(176): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\assetmanager.cpp(191): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\assetmanager.cpp(272): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\assetmanager.cpp(275): warning C4018: '<': signed/unsigned mismatch
+  Atmosphere.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(18): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(19): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(20): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(30): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(31): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(67): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(84): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(95): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(102): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(380): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(389): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(396): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(409): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(424): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(543): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(608): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(627): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(628): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(659): warning C4018: '>=': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(669): warning C4244: 'initializing': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(670): warning C4244: 'initializing': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(674): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(675): warning C4244: 'initializing': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\atmosphere.cpp(688): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+  Light.cpp
+  LightManager.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\lightmanager.cpp(36): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\lightmanager.cpp(40): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\lightmanager.cpp(77): warning C4018: '>=': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(65): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(64): note: while compiling class template member function 'PoolAllocator<Gibo::Light>::~PoolAllocator(void)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\lightmanager.h(22): note: see reference to function template instantiation 'PoolAllocator<Gibo::Light>::~PoolAllocator(void)' being compiled
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\lightmanager.h(68): note: see reference to class template instantiation 'PoolAllocator<Gibo::Light>' being compiled
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(108): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(101): note: while compiling class template member function 'PoolAllocator<Gibo::Light>::Chunk *PoolAllocator<Gibo::Light>::allocateBlock(size_t)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(76): note: see reference to function template instantiation 'PoolAllocator<Gibo::Light>::Chunk *PoolAllocator<Gibo::Light>::allocateBlock(size_t)' being compiled
+  Material.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(42): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(44): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(45): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(59): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(60): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(71): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(72): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(83): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(85): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(86): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(98): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(101): warning C4305: '=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\material.cpp(113): warning C4305: '=': truncation from 'double' to 'float'
+  RenderManager.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\glfw_handler.h(236): warning C4101: 'lol': unreferenced local variable
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(119): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(128): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(140): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(159): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(85): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(92): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(106): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(114): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(119): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(125): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(145): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(219): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(327): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(359): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(365): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(371): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(375): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(452): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(478): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(540): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(666): warning C4091: '': ignored on left of 'int' when no variable is declared
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(731): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(736): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(780): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(796): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(811): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(879): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(916): warning C4244: 'argument': conversion from 'float' to 'uint32_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(977): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1029): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1052): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1296): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1325): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1340): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1364): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1374): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1542): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1597): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1615): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1715): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1716): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1717): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1718): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1727): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(1911): warning C4244: '=': conversion from 'double' to '_Ty', possible loss of data
+          with
+          [
+              _Ty=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\rendermanager.cpp(2022): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(65): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(64): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(74): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)' being compiled
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(197): note: see reference to class template instantiation 'PoolAllocator<Gibo::RenderObject>' being compiled
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(108): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(101): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(76): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)' being compiled
+  RenderObject.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobject.cpp(35): warning C4018: '>=': signed/unsigned mismatch
+  RenderObjectManager.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(119): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(128): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(140): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(159): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(65): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(64): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(74): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)' being compiled
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(197): note: see reference to class template instantiation 'PoolAllocator<Gibo::RenderObject>' being compiled
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(108): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(101): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(76): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)' being compiled
+  TextureCache.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\vulkanhelpers.h(14): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(18): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(42): warning C4477: 'printf' : format string '%s' requires an argument of type 'char *', but variadic argument 2 has type 'std::string'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(85): warning C4244: 'argument': conversion from 'VkDeviceSize' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(103): warning C4244: '+=': conversion from 'VkDeviceSize' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(192): warning C4244: '+=': conversion from 'VkDeviceSize' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.cpp(218): warning C4244: 'argument': conversion from 'uint32_t' to 'float', possible loss of data
+  stb_image.cpp
+  Camera.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\camera.cpp(91): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\camera.cpp(96): warning C4244: '=': conversion from 'double' to 'float', possible loss of data
+  Input.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\input.cpp(22): warning C4244: 'argument': conversion from 'double' to 'int', possible loss of data
+  main.cpp
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\vkcore\samplercache.h(62): warning C4244: 'return': conversion from 'float' to 'size_t', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\glfw_handler.h(236): warning C4101: 'lol': unreferenced local variable
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\texturecache.h(64): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(119): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(128): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(140): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(159): warning C4018: '<': signed/unsigned mismatch
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(82): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(145): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(159): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(237): warning C4305: 'initializing': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(255): warning C4305: 'argument': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(288): warning C4305: '-=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(291): warning C4305: '+=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(294): warning C4305: '-=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(297): warning C4305: '+=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(300): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(310): warning C4244: '+=': conversion from 'double' to 'float', possible loss of data
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(324): warning C4244: '+=': conversion from 'double' to 'T', possible loss of data
+          with
+          [
+              T=float
+          ]
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(335): warning C4305: '+=': truncation from 'double' to 'float'
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\testapplication.h(233): warning C4101: 'tmp_lights': unreferenced local variable
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(65): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(64): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(74): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::~PoolAllocator(void)' being compiled
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\renderer\renderobjectmanager.h(197): note: see reference to class template instantiation 'PoolAllocator<Gibo::RenderObject>' being compiled
+c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(108): warning C4018: '<': signed/unsigned mismatch
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(101): note: while compiling class template member function 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)'
+  c:\users\gibom\documents\github\git_giborenderer\giborenderer\giborenderer\src\utilities\memorypractice.h(76): note: see reference to function template instantiation 'PoolAllocator<Gibo::RenderObject>::Chunk *PoolAllocator<Gibo::RenderObject>::allocateBlock(size_t)' being compiled
+     Creating library C:\Users\gibom\Documents\GitHub\git_giborenderer\GiboRenderer\Release\GiboRenderer.lib and object C:\Users\gibom\Documents\GitHub\git_giborenderer\GiboRenderer\Release\GiboRenderer.exp
+  Generating code
+  1019 of 7932 functions (12.8%) were compiled, the rest were copied from previous compilation.
+    559 functions were new in current compilation
+    710 functions had inline decision re-evaluated but remain unchanged
+  Finished generating code
+  GiboRenderer.vcxproj -> C:\Users\gibom\Documents\GitHub\git_giborenderer\GiboRenderer\Release\GiboRenderer.exe

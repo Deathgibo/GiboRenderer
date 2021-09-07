@@ -54,6 +54,8 @@ namespace Gibo {
 		Material(vkcoreDevice* device, vkcoreTexture defaulttexture) : deviceref(device) { CreateBuffer(); CreateMaps(defaulttexture); SetDefaultMaterial(); }
 		~Material();
 
+		void DestroyBuffers();
+
 		void SetDefaultMaterial();
 		void SetBrickMaterial();
 		void SetGoldMaterial();

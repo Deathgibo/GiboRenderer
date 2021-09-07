@@ -11,6 +11,7 @@
 
 namespace Gibo {
 
+	struct Cluster;
 	class RenderManager
 	{
 		enum SAMPLE_COUNT : int { ONE, TWO, FOUR, EIGHT, SIXTEEN, THIRTYTWO };
@@ -92,6 +93,7 @@ namespace Gibo {
 			atmosphere->UpdateSunPosition(pos);
 		}
 
+		void UpdateFrustrumClusters();
 		void SetResolutionFitted(bool val) { Resolution_Fitted = val; }
 		bool IsWindowOpen() const;
 		void SetWindowTitle(std::string title) const;
@@ -126,6 +128,13 @@ namespace Gibo {
 		void UpdateReduceProjMatrix();
 		void RecordReduceCmd(int current_frame);
 
+		void CreateCluster();
+		void CleanUpCluster();
+		void Clustercreateimagedata();
+		void Clusterdeleteimagedata();
+		void createClusterfinal();
+		void RecordClusterCmd(int current_frame);
+
 		void CreateCompute();
 		void CleanUpCompute();
 		void Computecreateimagedata();
@@ -147,13 +156,19 @@ namespace Gibo {
 		void Shadowdeleteimagedata();
 		void Shadowcreateimagedata();
 		void RecordShadowCmd(int current_frame);
-		void RecordShadowHelper(int32_t offsetx, int32_t offsety, int index, int current_frame);
+		void RecordShadowHelper(int32_t offsetx, int32_t offsety, int index, int current_frame, glm::mat4 PV);
 
 		void CreateQuad();
 		void CleanUpQuad();
 		void RecordQuadCmd(int current_frame, int current_imageindex);
 		void Quadcreateimagedata();
 		void Quaddeleteimagedata();
+
+		void CreateBV();
+		void CleanUpBV();
+		void BVcreateimagedata();
+		void BVdeleteimagedata();
+		void UpdateBV();
 
 		void startImGui();
 		void updateImGui(int current_frame, int imageindex);
@@ -180,7 +195,7 @@ namespace Gibo {
 		VkExtent2D Resolution = { 800, 640 };
 		bool Resolution_Fitted = true;
 		float FOV = 45.0f;
-		float near_plane = 1.0f;
+		float near_plane = 0.5f;
 		float far_plane = 1000.0f;
 
 		//imgui variables
@@ -211,6 +226,7 @@ namespace Gibo {
 		std::vector<vkcoreBuffer> cascade_buffer;
 		std::vector<vkcoreBuffer> point_pbrbuffer;
 		std::vector<vkcoreBuffer> point_infobuffer;
+		vkcoreBuffer nearfar_buffer;
 
 		//post-processing
 		std::vector<vkcoreImage> ppcolor_attachment;
@@ -290,6 +306,12 @@ namespace Gibo {
 		std::vector<VkCommandBuffer> cmdbuffer_shadow;
 		std::vector<float> cascade_nears; //need this to pancake everythig to each cascades orthogonalplane
 		std::vector<glm::vec4> cascade_depths;
+		std::vector<glm::mat4> cascade_p;
+		std::vector<glm::mat4> cascade_v;
+		std::vector<glm::mat4> spot_p;
+		std::vector<glm::mat4> spot_v;
+		std::vector<glm::mat4> point_p;
+		std::vector<glm::mat4> point_v;
 
 		//cascade options
 		glm::vec4 bias_info = glm::vec4(0.002, 0.002, 0.002, 0); //constant, normal, slope, not used
@@ -318,11 +340,12 @@ namespace Gibo {
 		uint32_t shadowpoint_height = 512 * 1;
 		uint32_t atlaspoint_width = 1024 * 2;
 		uint32_t atlaspoint_height = 1024 * 2;
-		uint32_t MAX_POINT_IMAGES = (atlaspoint_width / shadowpoint_width) * (atlaspoint_height / shadowpoint_height); //update to shader
+		uint32_t MAX_POINT_IMAGES = (atlaspoint_width / shadowpoint_width) * (atlaspoint_height / shadowpoint_height); //update to shader to match this number
 		glm::vec4 point_info;
 
 		std::array<float, 30> time_depth;
 		std::array<float, 30> time_reduce;
+		std::array<float, 30> time_cluster;
 		std::array<float, 30> time_shadow;
 		std::array<float, 30> time_mainpass;
 		std::array<float, 30> time_quad;
@@ -335,12 +358,49 @@ namespace Gibo {
 		glm::vec3 cam_position;
 		std::vector<vkcoreBuffer> pv_uniform;
 
+		//Bounding Volumes
+		bool Display_BV = false;
+		bool OldDisplay_BV = false;
+		ShaderProgram program_bv;
+		vkcorePipeline pipeline_bv;
+		std::vector<vkcoreBuffer> bv_vbos;
+		std::vector<int> bv_vbosizes;
+		vkcoreBuffer frustrum_vbo;
+		vkcoreBuffer cluster_vbo;
+		int cluster_vbo_count;
+		glm::mat4 debug_cam_matrix;
+		glm::mat4 debug_proj_matrix;
+		glm::mat4 debug_ortho_matrix;
+		float debug_theta = 270.0f;
+		float debug_phi = 90.0f;
+		float debug_far = 10.0f;
+		float debug_near = 0.1f;
+
+		//Clusters
+		ShaderProgram program_clustervisible;
+		ShaderProgram program_clustercull;
+		vkcorePipeline pipeline_clustervisible;
+		vkcorePipeline pipeline_clustercull;
+		std::vector<VkCommandBuffer> cmdbuffer_cluster;
+		std::vector<vkcoreBuffer> visible_clusters_storage;
+		uint32_t* visible_clusters_data;
+		vkcoreBuffer all_clusters_storage;
+		std::vector<vkcoreBuffer> clusters_index_storage;
+		std::vector<vkcoreBuffer> clusters_grid_storage;
+		std::vector<Cluster> frustrum_clusters;
+		std::vector<glm::mat4> clustercull_invmatrixes;
+		int CLUSTER_X = 8;
+		int CLUSTER_Y = 8;
+		int CLUSTER_Z = 15;
+		int CLUSTER_SIZE = CLUSTER_X * CLUSTER_Y * CLUSTER_Z; //must be lower than 1024 max local work group size
+
 		//submission synchronization
 		std::vector<VkFence> inFlightFences; 
 		std::vector<VkFence> swapimageFences;
 		std::vector<VkSemaphore> semaphore_imagefetch;
 		std::vector<VkSemaphore> semaphore_depth;
 		std::vector<VkSemaphore> semaphore_reduce;
+		std::vector<VkSemaphore> semaphore_cluster;
 		std::vector<VkSemaphore> semaphore_shadow;
 		std::vector<VkSemaphore> semaphore_colorpass;
 		std::vector<VkSemaphore> semaphore_gui;

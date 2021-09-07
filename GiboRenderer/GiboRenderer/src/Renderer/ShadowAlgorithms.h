@@ -30,7 +30,7 @@ namespace Gibo {
 		//calculate splitting depths in view space and convert to world
 		glm::mat4 inv_cam_matrix = inveyematrix;
 		const int m = cascade_count; //number of cascades
-		float a = (SDSM_ENABLE) ? 1.0 : .7; //linear combination variable
+		float a = (SDSM_ENABLE) ? 0.7 : .7; //linear combination variable
 
 		std::vector<glm::vec4> cascade_positions_ws(m + 1);
 		std::vector<float> cascade_positions_eyes(m + 1);
@@ -198,6 +198,7 @@ namespace Gibo {
 			int padding = 1;//1
 			int padding_depth = 1;
 			cascade_orthomatrix[i] = glm::ortho(min_max[i].x - padding, min_max[i].y + padding, min_max[i].z - padding, min_max[i].w + padding, near_far[i].x - padding_depth, near_far[i].y + padding_depth);
+
 			cascade_nears.push_back(near_far[i].x - padding_depth);
 		}
 
@@ -220,7 +221,14 @@ namespace Gibo {
 		                  std::vector<glm::mat4>& spotcam_matrixes, std::vector<glm::mat4>& spotprojmatrixes)
 	{
 		//get vector of all light id's that need shadow maps
+		int point_count = 0;
+		int spot_count = 0;
+		int max_point_count = 0;
 		std::vector<int> light_indices = lightmanager->GetShadow_Casts();
+		for (int i = 0; i < light_indices.size(); i++)
+		{
+			if (Light::convert_float_to_type(lightmanager->GetLightFromMap(light_indices[i])->type) == Light::light_type::POINT) max_point_count++;
+		}
 		for (int i = 0; i < light_indices.size(); i++)
 		{
 			Light::lightparams* light_info = lightmanager->GetLightFromMap(light_indices[i]);
@@ -246,6 +254,9 @@ namespace Gibo {
 					{
 						projmatrixes.push_back(proj_mat);
 					}
+					//point lights come first in atlas map
+					light_info->atlas_index = point_count * 6;
+					point_count++;
 				}
 				else if (type == Light::light_type::SPOT || type == Light::light_type::FOCUSED_SPOT)
 				{
@@ -260,6 +271,10 @@ namespace Gibo {
 
 					spotcam_matrixes.push_back(glm::lookAt(point_pos, point_pos + dir, up));
 					spotprojmatrixes.push_back(glm::perspective(fov, aspectratio, near_plane, point_range));
+
+					//spot lights come after spot lights in atlas
+					light_info->atlas_index = max_point_count * 6 + spot_count;
+					spot_count++;
 				}
 				else
 				{

@@ -1,6 +1,9 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
+//we use depth-prepass
+layout(early_fragment_tests) in;
+
 /* Gaussian just looks like nearest neighbor
 //16
 const float Gauss_Kernel3[3][3] =
@@ -77,6 +80,7 @@ layout(set = 0, binding = 5) uniform PointMatrix{
 #define SUN_DIRECTIONAL 4.0
 #define PI 3.141578
 #define SHOW_CASCADES 0
+#define SHOW_CLUSTERS 0
 
 struct light_params {
 	vec4 position;
@@ -90,7 +94,7 @@ struct light_params {
 
 	float type;
 	float cast_shadow;
-	float a2;
+	float atlas_index;
 	float a3;
 };
 
@@ -103,6 +107,33 @@ layout(set = 0, binding = 9) uniform lightcount_struct
 {
   int count;
 } light_count;
+
+layout(set = 0, binding = 12) readonly buffer indexlist
+{
+  int list[];
+} IndexList;
+
+struct gridval {
+	uint offset;
+	uint size;
+	uint index;
+};
+
+layout(set = 0, binding = 13) readonly buffer Grid
+{
+  gridval vals[];
+} grid;
+
+layout(set = 0, binding = 15) readonly buffer ActiveClusters
+{
+	uint active_list[];
+} active_clusters;
+
+layout(set = 0, binding = 14) uniform NearFarBuffer
+{
+	float near;
+	float far;
+} nearfar;
 
 layout(set = 0, binding = 0) uniform cascade_splits 
 {
@@ -728,6 +759,30 @@ float PCFPoisson(sampler2D shadow_map, float acnebias, float current_distance, v
 	return shadow;
 }
 
+float PCFPoisson9(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv, vec2 minbound, vec2 maxbound)
+{
+    vec2 texelsize = 1.0 / textureSize(shadow_map, 0); 
+	vec2 scaling = texelsize*2; //is how many texels you want the noise to sample from
+	
+	//calculate fragcoord myself since gl_fragcoord is super slow
+	float fragcoordx = ((clipspace.x / clipspace.w)*.5 + .5) * 800;
+	float fragcoordy = ((clipspace.y / clipspace.w)*.5 + .5) * 600;
+	vec3 ss_vec = vec3(fragcoordx,fragcoordy,fragcoordy);
+
+	float shadow = 0.0;
+	for(int i = 0;i<9;i++)
+	{
+		float theta = dot(vec4(ss_vec, i), vec4(12.9898,78.233,45.164,94.673));
+		mat2 randomRotationMatrix = mat2(vec2(cos(theta), -sin(theta)),
+										 vec2(sin(theta), cos(theta)));
+		float closest_distance = texture(shadow_map, clamp(uv.xy + randomRotationMatrix*PoissonSamples[i]*scaling, minbound,maxbound)).r;
+		shadow += current_distance - acnebias > closest_distance ? 0.0 : 1.0;
+	}
+	shadow/=9.0;
+
+	return shadow;
+}
+
 float PCFWitness(sampler2D shadow_map, float acnebias, float current_distance, vec2 uv2, vec2 minbound, vec2 maxbound, int size)
 {	
 	ivec2 texture_Size = textureSize(shadow_map, 0);
@@ -980,6 +1035,33 @@ void main() {
 	//only run if ndotL is not 0 for optimization
 	vec3 Color = vec3(0.0, 0.0, 0.0);
 
+	//cluster debugging
+	//calculate x and y bin 
+	const int x_size = 8;
+	const int y_size = 8;
+	const int z_size = 15;
+	float x_percent = (clipspace.x/clipspace.w + 1) / 2;
+	float y_percent = (clipspace.y/clipspace.w + 1) / 2;
+
+	int x_bucket = clamp(int(floor(x_percent * x_size)), 0 , x_size - 1);
+	int y_bucket = clamp(int(floor(y_percent * y_size)), 0, y_size - 1);
+
+	//calculate z bucket by converting to linear space and use near and far plane and our inverse z to slice mapping
+	float depth = clipspace.z/clipspace.w;
+	depth = pv.proj[3][2] / (-depth - pv.proj[2][2]);
+	depth = clamp((-depth - nearfar.near) / (nearfar.far - nearfar.near), 0.0, 1.0);
+	//convert to actual camera space z value. Use negative z values
+	depth = -nearfar.near + (-nearfar.far + nearfar.near)*depth;
+
+	int z_bucket = clamp(int(floor(log(-depth)*(z_size/log(nearfar.far/nearfar.near)) - ((z_size*log(nearfar.near)) / log(nearfar.far/nearfar.near)))), 0, z_size);
+
+	int cluster_index = z_bucket*x_size*y_size + x_bucket*y_size + y_bucket;
+
+	if(SHOW_CLUSTERS == 1)
+	{
+	  Color += vec3(grid.vals[cluster_index].size*.1,0, 0);
+	}
+
 	int point_count = 0;
 	int spot_count = 0;
 	int max_point_lights = int(pb.info.z);
@@ -990,18 +1072,22 @@ void main() {
 	int xslot_count = (atlas_dimensions.x) / (point_dimensions.x);
 	int yslot_count = (atlas_dimensions.y) / (point_dimensions.y);
 	vec2 texelsize_point = 1.0 / atlas_dimensions; 
-	for(int i = 0; i < light_count.count; i++)
+
+	uint cluster_light_count = grid.vals[cluster_index].size;
+	for(int i = 0; i < cluster_light_count; i++)
 	{
+		int light_index = IndexList.list[grid.vals[cluster_index].offset + i];
+
 		//first calculate shadow for this light and if its 0 skip lighting
 		//points and spots are held in atlas. All point lights go first including 6 of its sides, then after all points spot lights start.
 		float shadow_factor = 1.0;
-		if(light_data.linfo[i].cast_shadow == 1.0f)
+		if(light_data.linfo[light_index].cast_shadow == 1.0f)
 		{
 			int atlas_index = 0;
-			if(light_data.linfo[i].type == POINT)
+			if(light_data.linfo[light_index].type == POINT)
 			{
 			  //do cubemap thing [0-5]
-			  vec3 direction = WorldPos - light_data.linfo[i].position.xyz;
+			  vec3 direction = WorldPos - light_data.linfo[light_index].position.xyz;
 			  float maxComponent = max(max(abs(direction.x), abs(direction.y)), abs(direction.z));
 			  int faceIdx = 0;
 			  if(direction.x == maxComponent)
@@ -1029,13 +1115,14 @@ void main() {
 			  	faceIdx = 5;
 			  }
 
-			  atlas_index = point_count*6 + faceIdx;
-			  point_count = point_count + 1;
+			  atlas_index = int(light_data.linfo[light_index].atlas_index) + faceIdx;
+			  //; point_count = point_count + 1;
 			}
-			else if(light_data.linfo[i].type == SPOT || light_data.linfo[i].type == FOCUSED_SPOT)
+			else if(light_data.linfo[light_index].type == SPOT || light_data.linfo[light_index].type == FOCUSED_SPOT)
 			{
-			  atlas_index = max_point_lights*6 + spot_count;
-			  spot_count = spot_count + 1;
+			  atlas_index = int(light_data.linfo[light_index].atlas_index);
+			  //atlas_index = max_point_lights*6 + spot_count;
+			  //spot_count = spot_count + 1;
 			}
 
 			vec4 clip_pos = ppv.info[atlas_index].proj * ppv.info[atlas_index].view * vec4(WorldPos,1);
@@ -1043,7 +1130,7 @@ void main() {
 			clip_pos.xyz = clip_pos.xyz / clip_pos.w;
 			vec2 uv = clip_pos.xy*.5 + .5;
 
-			//modulo does not work I don't know why. Piece of shit. functions freak out completely if you have a float and int, or even convert them just gives you junk. floor(6/6) == 0!
+			//modulo does not work I don't know why. Piece of s@%#t. functions freak out completely if you have a float and int, or even convert them just gives you junk. floor(6/6) == 0!
 			//round(6)/round(6) == 0! awesome! So I guess I had this bug because I had a float == 6 and an int == 6 and floor broke, division broke, pretty much everything even if I converted
 			//them so cool. So don't ever use mod and careful on floor and ceil to use same base type with no conversions.
 			//I said is this number equal to 3... glsl said yes! But shadows didn't work, then I manually set it to 3 and it worked! So I guess it said this is equal to 3 even though
@@ -1059,7 +1146,7 @@ void main() {
 			newuv.y = slot.y * inv_sloty + uv.y*inv_sloty;
 			if(clip_pos.z >= 0 && clip_pos.z <= 1.0f && clip_pos.x >= -1 && clip_pos.x <= 1 && clip_pos.y >= -1 && clip_pos.y <= 1)
 			{
-			  float acnebias = DepthBias(N, normalize(light_data.linfo[i].position.xyz - WorldPos));
+			  float acnebias = DepthBias(N, normalize(light_data.linfo[light_index].position.xyz - WorldPos));
 			  vec2 minbound = vec2(slot.x*inv_slotx, slot.y*inv_sloty);
 			  vec2 maxbound = vec2((minbound.x+inv_slotx) - texelsize_point.x, (minbound.y+inv_sloty) - texelsize_point.y);
 			  
@@ -1069,9 +1156,10 @@ void main() {
 
 		if(shadow_factor != 0.0)
 		{
-		    Color += EvaluateLight(light_data.linfo[i], roughness, TdotV, BdotV, NdotV, T, B, N, V, specularColor, diffuseColor) * shadow_factor;
+		    Color += EvaluateLight(light_data.linfo[light_index], roughness, TdotV, BdotV, NdotV, T, B, N, V, specularColor, diffuseColor) * shadow_factor;
 		}
 	}
+	
 
 	//SUNLIGHT
 	light_params SunLight;
@@ -1136,16 +1224,20 @@ void main() {
 	vec2 minbound = vec2(slot.x*inv_slotx, slot.y*inv_sloty);
 	vec2 maxbound = vec2((minbound.x+inv_slotx) - texelsize_sun.x, (minbound.y+inv_sloty) - texelsize_sun.y);
 	float acnebias = DepthBias(N, -SunLight.direction.xyz);
-	sun_shadow_factor = PCFNearestNeighbor(sunShadowAtlas, acnebias, clip_pos.z, newsunuv, 1, 9, minbound, maxbound);
-
+	//sun_shadow_factor = PCFNearestNeighbor(sunShadowAtlas, acnebias, clip_pos.z, newsunuv, 1, 9, minbound, maxbound);
+	//sun_shadow_factor = PCFPoisson9(sunShadowAtlas, acnebias, clip_pos.z, newsunuv, minbound, maxbound);
+	sun_shadow_factor = PCFNearestNeighborBilinear(sunShadowAtlas, acnebias, clip_pos.z, newsunuv, 1, 9, minbound, maxbound);
+	
 	if(SHOW_CASCADES == 1)
 	{
 		if(atlas_index == 0)
 		  Color+=vec3(.2,0,0);
 		else if(atlas_index == 1)
 		 Color+=vec3(0,.2,0);
-		else
+		else if(atlas_index == 2)
 		 Color+=vec3(0,0,.2);
+		else
+		 Color+=vec3(0,.2,.2);
 	}
 
 	SunColor = max(SunColor, 0.0) * sun_shadow_factor;

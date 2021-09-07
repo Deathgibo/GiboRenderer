@@ -28,7 +28,7 @@ namespace Gibo {
 
 			float type;
 			float cast_shadow = 0.0f;
-			float a2;
+			float atlas_index = -1;
 			float a3;
 		};
 
@@ -57,7 +57,7 @@ namespace Gibo {
 		Light& setOuterAngle(float val) { info.outerangle = glm::radians(val); return *this; };
 		Light& setFallOff(float val) { info.falloff = val;     return *this; };
 		Light& setType(light_type val) { info.type = convert_type_to_float(val);  return *this; };
-		Light& setCastShadow(bool val) { info.cast_shadow = (val) ? 1.0f : 0.0f;  return *this; };
+		//Light& setCastShadow(bool val) { info.cast_shadow = (val) ? 1.0f : 0.0f;  return *this; };
 
 		void Move(glm::vec3 val) { info.position += glm::vec4(val.x, val.y, val.z, 0.0); }
 

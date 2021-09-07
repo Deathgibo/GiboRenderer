@@ -52,9 +52,15 @@ namespace Gibo {
 				char a;
 				std::cin >> a;
 				std::cin >> a;
-				VULKAN_CHECK(vkCreateCommandPool(deviceref, &static_info, nullptr, &Cache[0][i]), "creating static command pool");
-				VULKAN_CHECK(vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[1][i]), "creating dynamic command pool");
-				VULKAN_CHECK(vkCreateCommandPool(deviceref, &helper_info, nullptr, &Cache[2][i]), "creating helper command pool");
+				//VULKAN_CHECK(vkCreateCommandPool(deviceref, &static_info, nullptr, &Cache[0][i]), "creating static command pool");
+				std::cin >> a;
+				//VULKAN_CHECK(vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[1][i]), "creating dynamic command pool");
+				std::cin >> a;
+				//VULKAN_CHECK(vkCreateCommandPool(deviceref, &helper_info, nullptr, &Cache[2][i]), "creating helper command pool");
+
+				vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[0][i]);
+				vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[1][i]);
+				vkCreateCommandPool(deviceref, &dynamic_info, nullptr, &Cache[2][i]);
 			}
 		}
 

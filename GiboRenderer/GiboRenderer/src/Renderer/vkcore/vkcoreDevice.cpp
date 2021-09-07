@@ -66,6 +66,8 @@ namespace Gibo {
 		samplerCache = new SamplerCache(LogicalDevice);
 		pipelineCache = new PipelineCache(LogicalDevice);
 		cmdpoolCache = new CommandPoolCache(LogicalDevice, PhysicalDevice, Surface);
+		char a;
+		std::cin >> a;
 		cmdpoolCache->PrintInfo();
 		querymanager = new QueryManager(LogicalDevice, PhysicalDevice, framesinflight);
 

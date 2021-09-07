@@ -135,6 +135,18 @@
     <ClInclude Include="src\Renderer\ShadowAlgorithms.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\Renderer\BoundingVolumes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\TestApplication2.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Culling.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\Renderer\Clustered.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="src\pch.cpp">
@@ -234,6 +246,10 @@
     <None Include="Shaders\shadow.vert" />
     <None Include="Shaders\shadowpoint.vert" />
     <None Include="Shaders\shadowpoint.frag" />
+    <None Include="Shaders\bv.vert" />
+    <None Include="Shaders\bv.frag" />
+    <None Include="Shaders\VisibleClusters.comp" />
+    <None Include="Shaders\CullClusters.comp" />
   </ItemGroup>
   <ItemGroup>
     <Text Include="Shaders\DepthReductionmulti.comp" />

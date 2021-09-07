@@ -49,6 +49,7 @@ namespace Gibo {
 		void SyncGPUBuffer();
 		void AddLight(Light& light);
 		void RemoveLight(Light& light);
+		void SetShadowCaster(Light& light, bool cast);
 
 		vkcoreBuffer GetLightBuffer(int framecount) const { return light_buffer[framecount]; }
 		vkcoreBuffer GetLightCountBuffer(int framecount) const { return lightcounter_buffer[framecount]; }

@@ -1,5 +1,6 @@
 #pragma once
 #include "Logger.h"
+#include <stack>
 
 namespace Gibo {
 	/*
@@ -88,4 +89,69 @@ namespace Gibo {
 		int current_size = 0;
 	};
 
+	/*//pretty much this data structure is used if you have large data and want a vector. For a vector if you delete an item you might have to copy N times which is too expensive.
+	//This gets rid of that and also preallocated all memory so theres no memory allocation. The downside is that its static memory and theres cpu overrhead which pays off if your
+	//using large structures because we don't copy anymore. This data structure is an array that holds available slots and gives you an array of currently used indices you can loop through
+	template<typename T, size_t Size>
+	class SmartArray
+	{
+	public:
+		SmartArray()
+		{
+			;
+		}
+		//SmartArray()
+		//{
+			//data_valid.reserve(Size);
+			//for (int i = data.size() - 1; i >= 0; i--)
+			//{
+			//	stack.push(i);
+			//}
+		//}
+
+		~SmartArray() = default;
+
+		void Insert(T val)
+		{	
+#ifdef _DEBUG 
+			if (stack.empty()) { Logger::LogError("StaticArray out of room and your trying to insert!\n"); }
+#endif
+			int index = stack.top();
+			data[index] = val;
+			data_valid.push_back(index);
+			
+			//go to next avaible slot
+			stack.pop();
+		}
+
+		void Remove(T val)
+		{
+			for (int i = 0; i < data.size(); i++)
+			{
+				if (val == data[i])
+				{
+					for (int j = 0; j < data_valid.size(); j++)
+					{
+						if (data_valid[j] == i)
+						{
+							data_valid.erase(data_valid.begin() + j);
+						}
+					}
+					stack.push(i);
+				}
+			}
+		}
+
+		T& operator[](uint32_t index)
+		{
+			return data[index];
+		}
+		
+		std::vector<uint32_t>& GetValidData() { return data_valid; }
+
+	private:
+		std::array<T, Size> data;
+		std::vector<uint32_t> data_valid;
+		std::stack<uint32_t> stack;
+	};*/
 }

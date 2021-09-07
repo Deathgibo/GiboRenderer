@@ -2,7 +2,7 @@
 #include "AssetManager.h"
 
 namespace Gibo {
-	
+
 	//TODO - load in vertexdata, and indexdata directly instead of all these vectors. Also support no indexing.
 	void MeshCache::LoadMeshFromFile(std::string filename)
 	{
@@ -43,6 +43,9 @@ namespace Gibo {
 			                          VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
 		mesh.index_size = indexdata.size();
 
+		mesh.bv = new Sphere(); //AABB Sphere
+		mesh.bv->Construct(vertexdata, Vertex_Attribute_Length);
+
 		//count up memory total_buffer_size
 		total_buffer_size += sizeof(float) * vertexdata.size();
 		total_buffer_size += sizeof(unsigned int) * indexdata.size();
@@ -52,6 +55,7 @@ namespace Gibo {
 	{
 		for (auto& mesh : meshCache)
 		{
+			delete mesh.second.bv;
 			deviceref.DestroyBuffer(mesh.second.vbo);
 			deviceref.DestroyBuffer(mesh.second.ibo);
 		}
@@ -59,6 +63,7 @@ namespace Gibo {
 
 		if (Quad_Mesh.vbo.buffer != VK_NULL_HANDLE)
 		{
+			delete Quad_Mesh.bv;
 			deviceref.DestroyBuffer(Quad_Mesh.vbo);
 			deviceref.DestroyBuffer(Quad_Mesh.ibo);
 		}
@@ -69,14 +74,31 @@ namespace Gibo {
 		Logger::Log("Total Mesh Cache buffer size: ", total_buffer_size, " bytes Total Meshes stored: ", meshCache.size(), "\n");
 	}
 
-	MeshCache::Mesh MeshCache::GetMesh(std::string filename) 
+	//copies the contents of the original generate bounding volume into a new pointer
+	void MeshCache::GetOriginalMeshBV(std::string filename, BoundingVolume*& bv)
 	{
-		Mesh mesh;
+		if (filename == "Quad")
+		{
+			bv = Quad_Mesh.bv->clone();
+		}
+		else
+		{
+#ifdef _DEBUG
+			if (meshCache.count(filename) == 0) { Logger::LogWarning("Called GetMeshBV but filename isn't in cache!\n"); }
+#endif 
+			bv = meshCache[filename].bv->clone();
+		}
+	}
+
+	//copies contents directly into mesh
+	void MeshCache::SetObjectMesh(std::string filename, MeshCache::Mesh& mesh) 
+	{
 		if (meshCache.count(filename) == 1)
 		{
 			mesh.vbo = meshCache[filename].vbo.buffer;
 			mesh.ibo = meshCache[filename].ibo.buffer;
 			mesh.index_size = meshCache[filename].index_size;
+			mesh.mesh_name = filename;
 		}
 		else
 		{
@@ -84,11 +106,11 @@ namespace Gibo {
 			mesh.vbo = VK_NULL_HANDLE;
 			mesh.ibo = VK_NULL_HANDLE;
 			mesh.index_size = 0;
+			mesh.mesh_name = "NA";
 		}
-		return mesh;
 	}
 
-	MeshCache::Mesh MeshCache::GetQuadMesh()
+	void MeshCache::SetQuadMesh(MeshCache::Mesh& mesh)
 	{
 		if (Quad_Mesh.vbo.buffer == VK_NULL_HANDLE)
 		{
@@ -101,18 +123,18 @@ namespace Gibo {
 			deviceref.CreateBufferStaged(sizeof(unsigned int) * indexdata.size(), indexdata.data(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY, Quad_Mesh.ibo,
 				VK_ACCESS_INDEX_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
 			Quad_Mesh.index_size = indexdata.size();
+			Quad_Mesh.bv = new Sphere(); //AABB Sphere
+			Quad_Mesh.bv->Construct(vertexdata, Vertex_Attribute_Length);
 
 			//count up memory total_buffer_size
 			total_buffer_size += sizeof(float) * vertexdata.size();
 			total_buffer_size += sizeof(unsigned int) * indexdata.size();
 		}
 
-		Mesh mesh;
 		mesh.vbo = Quad_Mesh.vbo.buffer;
 		mesh.ibo = Quad_Mesh.ibo.buffer;
 		mesh.index_size = Quad_Mesh.index_size;
-
-		return mesh;
+		mesh.mesh_name = "Quad";
 	}
 	
 	bool ASSIMPLoader::LoadQuad(std::vector<float>& vertexdata, std::vector<unsigned int>& indexdata)

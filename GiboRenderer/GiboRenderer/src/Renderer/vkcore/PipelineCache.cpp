@@ -253,7 +253,7 @@ namespace Gibo {
 		return pipe_out;
 	}
 
-	vkcorePipeline PipelineCache::GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size)
+	vkcorePipeline PipelineCache::GetComputePipeline(VkPipelineShaderStageCreateInfo moduleinfo, VkDescriptorSetLayout* layouts, uint32_t layouts_size, std::vector<VkPushConstantRange>& ranges)
 	{
 		VkPipeline current_pipeline;
 		VkPipelineLayout current_layout;
@@ -263,10 +263,16 @@ namespace Gibo {
 			VkDescriptorSetLayout* l = layouts + i;
 			current_layouts.push_back(*l);
 		}
+
 		VkPipelineLayoutCreateInfo layoutinfo = {};
 		layoutinfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-		layoutinfo.setLayoutCount = current_layouts.size();
-		layoutinfo.pSetLayouts = current_layouts.data();
+		layoutinfo.setLayoutCount = layouts_size;
+		layoutinfo.pSetLayouts = layouts;
+		layoutinfo.pushConstantRangeCount = ranges.size();
+		if (ranges.size() != 0)
+		{
+			layoutinfo.pPushConstantRanges = ranges.data();
+		}
 
 		VULKAN_CHECK(vkCreatePipelineLayout(deviceref, &layoutinfo, nullptr, &current_layout), "creating pipeline layout");
 

@@ -92,6 +92,31 @@ namespace Gibo {
 		{
 			shadow_casts_changed = false;
 		}
+
+		shadow_casts_changed = true;
+	}
+
+	void LightManager::SetShadowCaster(Light& light, bool cast)
+	{
+		if (cast)
+		{
+			shadow_casts.push_back(light.lightmanager_id);
+			shadow_casts_changed = true;
+
+			light.getParamsPtr()->cast_shadow = 1;
+		}
+		else
+		{
+			shadow_casts_changed = true;
+			for (int i = 0; i < shadow_casts.size(); i++)
+			{
+				if (shadow_casts[i] == light.lightmanager_id)
+				{
+					shadow_casts.erase(shadow_casts.begin() + i);
+				}
+			}
+			light.getParamsPtr()->cast_shadow = 0;
+		}
 	}
 
 	void LightManager::AddLight(Light& light)
@@ -116,25 +141,26 @@ namespace Gibo {
 		//see if we want it to cast shadows
 		if (light.getParams().cast_shadow == 1.0f)
 		{
-			shadow_casts.push_back(light.lightmanager_id);
-			shadow_casts_changed = true;
+			//shadow_casts.push_back(light.lightmanager_id);
+			//shadow_casts_changed = true;
 		}
 	}
 
 	void LightManager::RemoveLight(Light& light)
 	{
-		//see if it was casting shadows and remove. 
-		if (light.getParams().cast_shadow == 1.0f)
+		//see if it was casting shadows and remove.
+		SetShadowCaster(light, false);
+		/*if (light.getParams().cast_shadow == 1.0f)
 		{
 			shadow_casts_changed = true;
 			for (int i = 0; i < shadow_casts.size(); i++)
 			{
 				if (shadow_casts[i] == light.lightmanager_id)
 				{
-					shadow_casts.erase(shadow_casts.begin() + i);
+					//shadow_casts.erase(shadow_casts.begin() + i);
 				}
 			}
-		}
+		}*/
 
 		if (light_map.count(light.lightmanager_id) != 0)
 		{

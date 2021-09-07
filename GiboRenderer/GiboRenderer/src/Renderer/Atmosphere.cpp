@@ -59,7 +59,7 @@ namespace Gibo {
 
 		//SKY GEOMETRY
 		mcache.LoadMeshFromFile("Models/quad.obj");
-		Sky_Mesh.SetMesh(mcache.GetMesh("Models/quad.obj"));
+		mcache.SetObjectMesh("Models/quad.obj", Sky_Mesh.GetMesh());
 
 
 		VkFormat format = VK_FORMAT_R32G32B32A32_SFLOAT; //VK_FORMAT_R64G64B64A64_SFLOAT
@@ -225,13 +225,13 @@ namespace Gibo {
 		}
 
 		//pipelines
-		pipeline_singlescatter = deviceref.GetPipelineCache().GetComputePipeline(program_singlescatter.GetShaderStageInfo()[0], &program_singlescatter.GetGlobalLayout(), 1);
+		pipeline_singlescatter = deviceref.GetPipelineCache().GetComputePipeline(program_singlescatter.GetShaderStageInfo()[0], &program_singlescatter.GetGlobalLayout(), 1, program_singlescatter.GetPushRanges());
 
-		pipeline_multiscatter = deviceref.GetPipelineCache().GetComputePipeline(program_multiscatter.GetShaderStageInfo()[0], &program_multiscatter.GetGlobalLayout(), 1);
+		pipeline_multiscatter = deviceref.GetPipelineCache().GetComputePipeline(program_multiscatter.GetShaderStageInfo()[0], &program_multiscatter.GetGlobalLayout(), 1, program_multiscatter.GetPushRanges());
 
-		pipeline_combine = deviceref.GetPipelineCache().GetComputePipeline(program_combine.GetShaderStageInfo()[0], &program_combine.GetGlobalLayout(), 1);
+		pipeline_combine = deviceref.GetPipelineCache().GetComputePipeline(program_combine.GetShaderStageInfo()[0], &program_combine.GetGlobalLayout(), 1, program_combine.GetPushRanges());
 
-		pipeline_ambient = deviceref.GetPipelineCache().GetComputePipeline(program_ambient.GetShaderStageInfo()[0], &program_ambient.GetGlobalLayout(), 1);
+		pipeline_ambient = deviceref.GetPipelineCache().GetComputePipeline(program_ambient.GetShaderStageInfo()[0], &program_ambient.GetGlobalLayout(), 1, program_ambient.GetPushRanges());
 
 
 		CreateSwapChainData(pipeline_extent, renderpass, sample_count);

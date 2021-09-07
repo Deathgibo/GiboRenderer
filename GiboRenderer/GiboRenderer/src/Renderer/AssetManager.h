@@ -3,9 +3,11 @@
 #include <assimp/Importer.hpp>      // C++ importer interface
 #include <assimp/scene.h>           // Output data structure
 #include <assimp/postprocess.h>     // Post processing flags
+#include "BoundingVolumes.h"
 
 namespace Gibo {
 
+	static int Vertex_Attribute_Length = 14;//counts number of float in each vertex (position,normal,uv,T,B)
 	/*
 	The point of these classes are to create the meshes and textures at start up and just cache them for when other renderobjects need them.
 	This method is very nice as long as we don't have so much data that we can't store it all on VRAM which is fine for now. But later I will
@@ -20,6 +22,7 @@ namespace Gibo {
 			VkBuffer vbo;
 			VkBuffer ibo;
 			uint32_t index_size;
+			std::string mesh_name;
 		};
 
 	public:
@@ -36,8 +39,10 @@ namespace Gibo {
 		void LoadMeshFromFile(std::string filename);
 		void CleanUp();
 		void PrintMemory() const; 
-		Mesh GetMesh(std::string filename);
-		Mesh GetQuadMesh();
+		//Mesh GetMesh(std::string filename);
+		void SetObjectMesh(std::string filename, MeshCache::Mesh& mesh);
+		void GetOriginalMeshBV(std::string filename, BoundingVolume*& bv);
+		void SetQuadMesh(MeshCache::Mesh& mesh);
 	private:
 		void LoadMesh(std::string filename, std::vector<float>& vertexdata, std::vector<unsigned int>& indexdata);
 		struct Mesh_internal
@@ -45,6 +50,7 @@ namespace Gibo {
 			vkcoreBuffer vbo;
 			vkcoreBuffer ibo;
 			uint32_t index_size;
+			BoundingVolume* bv; //bounding volume in model space for this mesh
 		};
 	private:
 		std::unordered_map<std::string, Mesh_internal> meshCache;

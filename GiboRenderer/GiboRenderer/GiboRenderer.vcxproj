@@ -19,8 +19,12 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Renderer\Clustered.h" />
+    <ClInclude Include="src\Renderer\Culling.h" />
+    <ClInclude Include="src\Renderer\BoundingVolumes.h" />
     <ClInclude Include="src\Renderer\ShadowAlgorithms.h" />
     <ClInclude Include="src\Renderer\vkcore\QueryManager.h" />
+    <ClInclude Include="src\TestApplication2.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imconfig.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imgui.h" />
     <ClInclude Include="src\ThirdParty\ImGui\imgui_impl_glfw.h" />
@@ -241,6 +245,10 @@
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
+    <None Include="Shaders\bv.frag" />
+    <None Include="Shaders\bv.vert" />
+    <None Include="Shaders\CullClusters.comp" />
+    <None Include="Shaders\VisibleClusters.comp" />
     <None Include="Shaders\DepthReduction.comp" />
     <None Include="Shaders\depth_presspass.frag" />
     <None Include="Shaders\gui.frag" />
