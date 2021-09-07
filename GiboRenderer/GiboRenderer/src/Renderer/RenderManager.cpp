@@ -3421,7 +3421,7 @@ namespace Gibo {
 			Device.CreateBufferStaged(sizeof(float) * points.size(), points.data(), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_GPU_ONLY,
 				cluster_vbo, VK_ACCESS_VERTEX_ATTRIBUTE_READ_BIT, VK_PIPELINE_STAGE_VERTEX_INPUT_BIT);
 		}
-
+		//hehe
 
 		//update debugging frustrum every frame for now
 		//given a PV matrix return 8 points of frustrum
