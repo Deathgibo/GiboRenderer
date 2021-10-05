@@ -1,4 +1,4 @@
-# GibRenderer
+# GiboRenderer
 
 Vulkan Rendering Engine.
 
